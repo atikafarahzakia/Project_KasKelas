@@ -118,6 +118,12 @@ $totalNonaktif = mysqli_fetch_assoc(query("SELECT COUNT(*) AS total FROM murid W
                         <a class="nav-link" href="kaskeluar.php">Kas Keluar</a>
                     </li>
                     <li class="nav-item">
+                            <a class="nav-link" href="iuran_khusus.php">Iuran Khusus</a>
+                        </li>
+                    <li class="nav-item mt-4">
+                        <small class="ms-3">Laporan</small>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link" href="aruskas.php">Arus Kas</a>
                     </li>
                     <li class="nav-item">
@@ -295,18 +301,36 @@ $totalNonaktif = mysqli_fetch_assoc(query("SELECT COUNT(*) AS total FROM murid W
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <?php while ($m = mysqli_fetch_assoc($data)): ?>
+                                    <tbody>
+                                        <?php foreach ($data as $m):
+                                            if (strtolower($m['status']) == 'aktif') {
+                                                $s = "Aktif";
+                                                $w = "success";
+                                            } else {
+                                                $s = "Tidak Aktif";
+                                                $w = "danger";
+                                            }
+                                        ?>
                                             <tr>
                                                 <td><?= $no++ ?></td>
                                                 <td><?= $m['nama']; ?></td>
                                                 <td><?= $m['kelas']; ?></td>
-                                                <td><?= $m['status']; ?></td>
+                                                <td><span class="badge bg-<?= $w ?>"><?= $s ?></span></td>
                                                 <td>
-                                                    <a href="?edit=<?= $m['id_murid']; ?>" class="btn btn-sm btn-warning"><i class="fa-solid fa-pen-to-square"></i></a>
-                                                    <a href="?hapus=<?= $m['id_murid']; ?>" onclick="return confirm('hapus data?')" class="btn btn-sm btn-danger"><i class="fa-solid fa-trash"></i></a>
+                                                    <a href="?edit=<?= $m['id_murid']; ?>"
+                                                        class="btn btn-sm btn-warning">
+                                                        <i class="fa-solid fa-pen-to-square"></i>
+                                                    </a>
+                                                    <a href="?hapus=<?= $m['id_murid']; ?>"
+                                                        onclick="return confirm('hapus data?')"
+                                                        class="btn btn-sm btn-danger">
+                                                        <i class="fa-solid fa-trash"></i>
+                                                    </a>
                                                 </td>
                                             </tr>
-                                        <?php endwhile; ?>
+                                        <?php endforeach; ?>
+                                    </tbody>
+
                                     </tbody>
                                 </table>
                             </div>

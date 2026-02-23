@@ -69,6 +69,12 @@ GROUP BY murid.id_murid");
                             <a class="nav-link" href="kaskeluar.php">Kas Keluar</a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link" href="iuran_khusus.php">Iuran Khusus</a>
+                        </li>
+                        <li class="nav-item mt-4">
+                            <small class="ms-3">Laporan</small>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link" href="aruskas.php">Arus Kas</a>
                         </li>
                     <?php endif; ?>
@@ -113,7 +119,7 @@ GROUP BY murid.id_murid");
                         <!-- 1 -->
                         <div class="col-md-3">
                             <div class="card h-100">
-                                <div class="card-body border border-warning rounded d-flex flex-column justify-content-center shadow">
+                                <div class="card-body border border-info rounded d-flex flex-column justify-content-center shadow">
                                     <h6 class="text-muted mb-1">Total Murid</h6>
                                     <h4 class="fw-bold mb-0"><?= number_format(dataSiswa()); ?></h4>
                                 </div>
@@ -123,8 +129,8 @@ GROUP BY murid.id_murid");
                         <div class="col-md-3">
                             <div class="card h-100">
                                 <div class="card-body border border-success rounded d-flex flex-column justify-content-center shadow">
-                                    <h5>Jumlah Lunas</h5>
-                                    <p class="mb-0">-</p>
+                                    <h6 class="text-muted mb-1">Jumlah Lunas</h6>
+                                    <!-- <h4 class="fw-bold mb-0"><?= number_format(dataSiswa()); ?></h4> -->
                                 </div>
                             </div>
                         </div>
@@ -132,17 +138,17 @@ GROUP BY murid.id_murid");
                         <div class="col-md-3">
                             <div class="card h-100">
                                 <div class="card-body border border-danger rounded d-flex flex-column justify-content-center shadow">
-                                    <h5>Jumlah Belum Lunas</h5>
-                                    <p class="mb-0">-</p>
+                                    <h6 class="text-muted mb-1">Jumlah Belum Lunas</h6>
+                                    <!-- <h4 class="fw-bold mb-0"><?= number_format(dataSiswa()); ?></h4> -->
                                 </div>
                             </div>
                         </div>
-                        <!-- 4 -->
+                        <!-- 3 -->
                         <div class="col-md-3">
                             <div class="card h-100">
-                                <div class="card-body border border-info rounded d-flex flex-column justify-content-center shadow">
-                                    <h5>Jumlah Sebagian Bayar</h5>
-                                    <p class="mb-0">-</p>
+                                <div class="card-body border border-warning rounded d-flex flex-column justify-content-center shadow">
+                                    <h6 class="text-muted mb-1">Jumlah Sebagian Bayar</h6>
+                                    <!-- <h4 class="fw-bold mb-0"><?= number_format(dataSiswa()); ?></h4> -->
                                 </div>
                             </div>
                         </div>

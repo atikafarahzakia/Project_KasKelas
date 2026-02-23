@@ -109,6 +109,12 @@ $data = query("SELECT * FROM transaksi");
                         <a class="nav-link" href="kaskeluar.php">Kas Keluar</a>
                     </li>
                     <li class="nav-item">
+                            <a class="nav-link" href="iuran_khusus.php">Iuran Khusus</a>
+                        </li>
+                    <li class="nav-item mt-4">
+                        <small class="ms-3">Laporan</small>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link" href="aruskas.php">Arus Kas</a>
                     </li>
                     <li class="nav-item">
@@ -178,8 +184,8 @@ $data = query("SELECT * FROM transaksi");
                             <div class="card-body py-3 px-3 d-flex align-items-center gap-3">
                                 <div class="fs-3 text-success">📈</div>
                                 <div>
-                                    <h5 class="mb-1 fw-semibold">Kas Masuk</h5>
-                                    <p class="fw-bold mb-0">-</p>
+                                    <h6 class="text-muted mb-1">Kas Masuk</h6>
+                                    <!-- <h4 class="fw-bold mb-0"><?= number_format(dataSiswa()); ?></h4> -->
                                 </div>
                             </div>
                         </div>
@@ -191,8 +197,8 @@ $data = query("SELECT * FROM transaksi");
                             <div class="card-body py-3 px-3 d-flex align-items-center gap-3">
                                 <div class="fs-3 text-danger">❌</div>
                                 <div>
-                                    <h5 class="mb-1 fw-semibold">Belum Dibayar</h5>
-                                    <p class="fw-bold mb-0">-</p>
+                                    <h6 class="text-muted mb-1">Belum Bayar</h6>
+                                    <!-- <h4 class="fw-bold mb-0"><?= number_format(dataSiswa()); ?></h4> -->
                                 </div>
                             </div>
                         </div>
@@ -204,8 +210,8 @@ $data = query("SELECT * FROM transaksi");
                             <div class="card-body py-3 px-3 d-flex align-items-center gap-3">
                                 <div class="fs-3 text-warning">💰</div>
                                 <div>
-                                    <h5 class="mb-1 fw-semibold">Jumlah Bayar</h5>
-                                    <p class="fw-bold mb-0">-</p>
+                                    <h6 class="text-muted mb-1">Jumlah Bayar</h6>
+                                    <!-- <h4 class="fw-bold mb-0"><?= number_format(dataSiswa()); ?></h4> -->
                                 </div>
                             </div>
                         </div>
@@ -217,8 +223,8 @@ $data = query("SELECT * FROM transaksi");
                             <div class="card-body py-3 px-3 d-flex align-items-center gap-3">
                                 <div class="fs-3 text-primary">🔄</div>
                                 <div>
-                                    <h5 class="mb-1 fw-semibold">Pembayaran Terakhir</h5>
-                                    <p class="fw-bold mb-0">-</p>
+                                    <h6 class="text-muted mb-1">Pembayaran Terakhir</h6>
+                                    <!-- <h4 class="fw-bold mb-0"><?= number_format(dataSiswa()); ?></h4> -->
                                 </div>
                             </div>
                         </div>
@@ -304,7 +310,6 @@ $data = query("SELECT * FROM transaksi");
                                             <th scope="col">Tanggal</th>
                                             <th scope="col">Nama Siswa</th>
                                             <th scope="col">Jumlah</th>
-                                            <th scope="col">Deskripsi</th>
                                             <th scope="col">Aksi</th>
                                         </tr>
                                     </thead>
@@ -326,7 +331,6 @@ $data = query("SELECT * FROM transaksi");
                                                 <td><?= $row['tanggal']; ?></td>
                                                 <td><?= $row['nama']; ?></td>
                                                 <td><?= number_format($row['jumlah'], 0, ',', '.'); ?></td>
-                                                <td><?= $row['deskripsi'] ?></td>
                                                 <td>
                                                     <a href="?edit=<?= $row['id_transaksi']; ?>"
                                                         class="btn btn-sm btn-warning">

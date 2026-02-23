@@ -21,7 +21,7 @@ $q = query("
 <html lang="en">
 
 <head>
-    <title>Dashboard</title>
+    <title>Arus Kas</title>
     <!-- Required meta tags -->
     <meta charset="utf-8" />
     <meta
@@ -75,6 +75,12 @@ $q = query("
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="kaskeluar.php">Kas Keluar</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="iuran_khusus.php">Iuran Khusus</a>
+                        </li>
+                        <li class="nav-item mt-4">
+                            <small class="ms-3">Laporan</small>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link active" href="aruskas.php">Arus Kas</a>

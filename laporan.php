@@ -61,6 +61,12 @@ include 'config/app.php';
                             <a class="nav-link" href="kaskeluar.php">Kas Keluar</a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link" href="iuran_khusus.php">Iuran Khusus</a>
+                        </li>
+                        <li class="nav-item mt-4">
+                            <small class="ms-3">Laporan</small>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link" href="aruskas.php">Arus Kas</a>
                         </li>
                     <?php endif; ?>
@@ -105,18 +111,18 @@ include 'config/app.php';
                         <!-- 1 -->
                         <div class="col-md-3">
                             <div class="card h-100">
-                                <div class="card-body border border-warning rounded d-flex flex-column justify-content-center shadow">
-                                    <h5>Saldo Awal</h5>
-                                    <p class="mb-0">-</p>
+                                <div class="card-body border border-info rounded d-flex flex-column justify-content-center shadow">
+                                    <h6 class="text-muted mb-1">Saldo Awal</h6>
+                                    <!-- <h4 class="fw-bold mb-0"><?= number_format(dataSiswa()); ?></h4> -->
                                 </div>
                             </div>
                         </div>
-                        <!-- 2 -->
+                        <!-- 1 -->
                         <div class="col-md-3">
                             <div class="card h-100">
                                 <div class="card-body border border-success rounded d-flex flex-column justify-content-center shadow">
-                                    <h5>Total Kas Masuk</h5>
-                                    <p class="mb-0">-</p>
+                                    <h6 class="text-muted mb-1">Total Kas Masuk</h6>
+                                    <!-- <h4 class="fw-bold mb-0"><?= number_format(dataSiswa()); ?></h4> -->
                                 </div>
                             </div>
                         </div>
@@ -124,17 +130,17 @@ include 'config/app.php';
                         <div class="col-md-3">
                             <div class="card h-100">
                                 <div class="card-body border border-danger rounded d-flex flex-column justify-content-center shadow">
-                                    <h5>Total Kas Keluar</h5>
-                                    <p class="mb-0">-</p>
+                                    <h6 class="text-muted mb-1">Total Kas Keluar</h6>
+                                    <!-- <h4 class="fw-bold mb-0"><?= number_format(dataSiswa()); ?></h4> -->
                                 </div>
                             </div>
                         </div>
                         <!-- 4 -->
                         <div class="col-md-3">
                             <div class="card h-100">
-                                <div class="card-body border border-info rounded d-flex flex-column justify-content-center shadow">
-                                    <h5>Saldo Akhir</h5>
-                                    <p class="mb-0">-</p>
+                                <div class="card-body border border-warning rounded d-flex flex-column justify-content-center shadow">
+                                    <h6 class="text-muted mb-1">Saldo Akhir</h6>
+                                    <!-- <h4 class="fw-bold mb-0"><?= number_format(dataSiswa()); ?></h4> -->
                                 </div>
                             </div>
                         </div>

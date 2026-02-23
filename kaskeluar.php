@@ -101,6 +101,12 @@ if (isset($_GET['hapus'])) {
                         <a class="nav-link active" href="kaskeluar.php">Kas Keluar</a>
                     </li>
                     <li class="nav-item">
+                            <a class="nav-link" href="iuran_khusus.php">Iuran Khusus</a>
+                        </li>
+                    <li class="nav-item mt-4">
+                        <small class="ms-3">Laporan</small>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link" href="aruskas.php">Arus Kas</a>
                     </li>
                     <li class="nav-item">
@@ -167,8 +173,8 @@ if (isset($_GET['hapus'])) {
                             <div class="card-body py-3 px-3 d-flex align-items-center gap-3">
                                 <div class="fs-3 text-success">📈</div>
                                 <div>
-                                    <h5 class="mb-1 fw-semibold">Total Pengeluaran</h5>
-                                    <p class="fw-bold mb-0">-</p>
+                                    <h6 class="text-muted mb-1">Total Pengeluaran</h6>
+                                    <!-- <h4 class="fw-bold mb-0"><?= number_format(dataSiswa()); ?></h4> -->
                                 </div>
                             </div>
                         </div>
@@ -180,8 +186,8 @@ if (isset($_GET['hapus'])) {
                             <div class="card-body py-3 px-3 d-flex align-items-center gap-3">
                                 <div class="fs-3 text-danger">❌</div>
                                 <div>
-                                    <h5 class="mb-1 fw-semibold">Sisa Saldo</h5>
-                                    <p class="fw-bold mb-0">-</p>
+                                    <h6 class="text-muted mb-1">Sisa Saldo</h6>
+                                    <!-- <h4 class="fw-bold mb-0"><?= number_format(dataSiswa()); ?></h4> -->
                                 </div>
                             </div>
                         </div>
@@ -193,8 +199,8 @@ if (isset($_GET['hapus'])) {
                             <div class="card-body py-3 px-3 d-flex align-items-center gap-3">
                                 <div class="fs-3 text-warning">💰</div>
                                 <div>
-                                    <h5 class="mb-1 fw-semibold">Pengeluaran Terakhir</h5>
-                                    <p class="fw-bold mb-0">-</p>
+                                    <h6 class="text-muted mb-1">Pengeluaran Terakhir</h6>
+                                    <!-- <h4 class="fw-bold mb-0"><?= number_format(dataSiswa()); ?></h4> -->
                                 </div>
                             </div>
                         </div>
@@ -206,8 +212,8 @@ if (isset($_GET['hapus'])) {
                             <div class="card-body py-3 px-3 d-flex align-items-center gap-3">
                                 <div class="fs-3 text-primary">🔄</div>
                                 <div>
-                                    <h5 class="mb-1 fw-semibold">Pengeluaran Terakhir</h5>
-                                    <p class="fw-bold mb-0">-</p>
+                                    <h6 class="text-muted mb-1">-</h6>
+                                    <!-- <h4 class="fw-bold mb-0"><?= number_format(dataSiswa()); ?></h4> -->
                                 </div>
                             </div>
                         </div>
