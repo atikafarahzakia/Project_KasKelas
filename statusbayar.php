@@ -1,11 +1,14 @@
 <?php
 session_start();
 include 'config/app.php';
+
 $kas_wajib = 20000;
 $q = query("SELECT murid.id_murid,nama,IFNULL(SUM(jumlah),0) as total FROM murid
 LEFT JOIN transaksi ON murid.id_murid=transaksi.id_murid
 AND jenis='Masuk' AND MONTH(tanggal)=MONTH(CURDATE())
 GROUP BY murid.id_murid");
+
+$status = ringkasanStatusBayar($kas_wajib);
 ?>
 <!doctype html>
 <html lang="en">
@@ -121,7 +124,7 @@ GROUP BY murid.id_murid");
                             <div class="card h-100">
                                 <div class="card-body border border-info rounded d-flex flex-column justify-content-center shadow">
                                     <h6 class="text-muted mb-1">Total Murid</h6>
-                                    <h4 class="fw-bold mb-0"><?= number_format(dataSiswa()); ?></h4>
+                                    <h5 class="fw-bold mb-0"><?= number_format(dataSiswa()); ?></h5>
                                 </div>
                             </div>
                         </div>
@@ -130,7 +133,7 @@ GROUP BY murid.id_murid");
                             <div class="card h-100">
                                 <div class="card-body border border-success rounded d-flex flex-column justify-content-center shadow">
                                     <h6 class="text-muted mb-1">Jumlah Lunas</h6>
-                                    <!-- <h4 class="fw-bold mb-0"><?= number_format(dataSiswa()); ?></h4> -->
+                                    <h5 class="fw-bold mb-0"><?= $status['lunas']; ?></h5>
                                 </div>
                             </div>
                         </div>
@@ -139,16 +142,16 @@ GROUP BY murid.id_murid");
                             <div class="card h-100">
                                 <div class="card-body border border-danger rounded d-flex flex-column justify-content-center shadow">
                                     <h6 class="text-muted mb-1">Jumlah Belum Lunas</h6>
-                                    <!-- <h4 class="fw-bold mb-0"><?= number_format(dataSiswa()); ?></h4> -->
+                                    <h5 class="fw-bold mb-0"><?= $status['belum']; ?></h5>
                                 </div>
                             </div>
                         </div>
-                        <!-- 3 -->
+                        <!-- 4 -->
                         <div class="col-md-3">
                             <div class="card h-100">
                                 <div class="card-body border border-warning rounded d-flex flex-column justify-content-center shadow">
                                     <h6 class="text-muted mb-1">Jumlah Sebagian Bayar</h6>
-                                    <!-- <h4 class="fw-bold mb-0"><?= number_format(dataSiswa()); ?></h4> -->
+                                    <h5 class="fw-bold mb-0"><?= $status['sebagian']; ?></h5>
                                 </div>
                             </div>
                         </div>

@@ -15,6 +15,12 @@ $q = query("
         AND MONTH(transaksi.tanggal) = MONTH(CURDATE())
     GROUP BY murid.id_murid
 ");
+
+$masukBulanIni  = kasMasukBulanIni();
+$keluarBulanIni = kasKeluarBulanIni();
+$arusBulanIni   = arusKasBulanIni();
+$masuk  = ringkasanKasMasuk();
+$keluar = ringkasanKasKeluar();
 ?>
 
 <!doctype html>
@@ -130,7 +136,12 @@ $q = query("
                             <!-- ambil dari database -->
                             <h5>Rp.<?= number_format(getSaldo()); ?></h5>
                             <hr>
-                            <p>Kas Bulan Ini: Rp.-</p>
+                            <p>
+                                Kas Bulan Ini:
+                                <strong class="<?= $arusBulanIni < 0 ? 'text-danger' : 'text-success'; ?>">
+                                    Rp <?= number_format($arusBulanIni, 0, ',', '.'); ?>
+                                </strong>
+                            </p>
                         </card>
                     </div>
                 </div>
@@ -144,7 +155,10 @@ $q = query("
                             <div class="card h-100">
                                 <div class="card-body border border-success rounded d-flex flex-column justify-content-center shadow">
                                     <h5>Kas Masuk</h5>
-                                    <p class="mb-0">-</p>
+                                    <h6 class="mb-0 fw-bold">
+                                        Rp <?= number_format($masukBulanIni, 0, ',', '.'); ?>
+                                    </h6>
+                                    <small class="text-muted">Bulan ini</small>
                                 </div>
                             </div>
                         </div>
@@ -153,7 +167,11 @@ $q = query("
                             <div class="card h-100">
                                 <div class="card-body border border-danger rounded d-flex flex-column justify-content-center shadow">
                                     <h5>Kas Keluar</h5>
-                                    <p class="mb-0">-</p>
+                                    <h6 class="mb-0 fw-bold">
+                                        Rp <?= number_format($keluarBulanIni, 0, ',', '.'); ?>
+                                    </h6>
+                                    <small class="text-muted">Bulan ini</small>
+
                                 </div>
                             </div>
                         </div>
@@ -162,7 +180,10 @@ $q = query("
                             <div class="card h-100">
                                 <div class="card-body border border-info rounded d-flex flex-column justify-content-center shadow">
                                     <h5>Arus Kas</h5>
-                                    <p class="mb-0">-</p>
+                                    <h6 class="mb-0 fw-bold <?= $arusBulanIni < 0 ? 'text-danger' : 'text-primary'; ?>">
+                                        Rp <?= number_format($arusBulanIni, 0, ',', '.'); ?>
+                                    </h6>
+                                    <small class="text-muted">Bulan ini</small>
                                 </div>
                             </div>
                         </div>
@@ -171,7 +192,7 @@ $q = query("
                             <div class="card h-100">
                                 <div class="card-body border border-warning rounded d-flex flex-column justify-content-center shadow">
                                     <h5>Data Murid</h5>
-                                    <p class="mb-0"><?= number_format(dataSiswa()); ?></p>
+                                    <h6 class="mb-0 text-muted"><?= number_format(dataSiswa()); ?></h6>
                                 </div>
                             </div>
                         </div>

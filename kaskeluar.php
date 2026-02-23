@@ -43,6 +43,9 @@ if (isset($_GET['hapus'])) {
     header("Location: kaskeluar.php?success=delete");
     exit;
 }
+
+//ringkasan kas keluar
+$keluar = ringkasanKasKeluar();
 ?>
 
 <!doctype html>
@@ -101,8 +104,8 @@ if (isset($_GET['hapus'])) {
                         <a class="nav-link active" href="kaskeluar.php">Kas Keluar</a>
                     </li>
                     <li class="nav-item">
-                            <a class="nav-link" href="iuran_khusus.php">Iuran Khusus</a>
-                        </li>
+                        <a class="nav-link" href="iuran_khusus.php">Iuran Khusus</a>
+                    </li>
                     <li class="nav-item mt-4">
                         <small class="ms-3">Laporan</small>
                     </li>
@@ -167,14 +170,16 @@ if (isset($_GET['hapus'])) {
                 <!-- ringkasan -->
                 <h3 class="mb-4">Ringkasan</h3>
                 <div class="row g-3">
-                    <!-- Kas Masuk -->
+                    <!-- Kas keluar -->
                     <div class="col-12 col-md-6">
                         <div class="card shadow-sm h-100">
                             <div class="card-body py-3 px-3 d-flex align-items-center gap-3">
-                                <div class="fs-3 text-success">📈</div>
+                                <div class="fs-3 text-danger">
+                                    <i class="fa-solid fa-arrow-trend-down"></i>
+                                </div>
                                 <div>
-                                    <h6 class="text-muted mb-1">Total Pengeluaran</h6>
-                                    <!-- <h4 class="fw-bold mb-0"><?= number_format(dataSiswa()); ?></h4> -->
+                                    <h6 class="text-muted mb-1">Kas Keluar</h6>
+                                    <h5 class="fw-bold mb-0">Rp <?= number_format($keluar['totalKeluar'], 0, ',', '.'); ?></h5>
                                 </div>
                             </div>
                         </div>
@@ -184,10 +189,12 @@ if (isset($_GET['hapus'])) {
                     <div class="col-12 col-md-6">
                         <div class="card shadow-sm h-100">
                             <div class="card-body py-3 px-3 d-flex align-items-center gap-3">
-                                <div class="fs-3 text-danger">❌</div>
+                                <div class="fs-3 text-secondary">
+                                    <i class="fa-solid fa-chart-area"></i>
+                                </div>
                                 <div>
-                                    <h6 class="text-muted mb-1">Sisa Saldo</h6>
-                                    <!-- <h4 class="fw-bold mb-0"><?= number_format(dataSiswa()); ?></h4> -->
+                                    <h6 class="text-muted mb-1">Total kas keluar bulan ini</h6>
+                                    <h5 class="fw-bold mb-0">Rp <?= number_format($keluar['keluarBulanIni'], 0, ',', '.'); ?></h5>
                                 </div>
                             </div>
                         </div>
@@ -197,10 +204,12 @@ if (isset($_GET['hapus'])) {
                     <div class="col-12 col-md-6">
                         <div class="card shadow-sm h-100">
                             <div class="card-body py-3 px-3 d-flex align-items-center gap-3">
-                                <div class="fs-3 text-warning">💰</div>
+                                <div class="fs-3 text-info">
+                                    <i class="fa-solid fa-arrow-down-wide-short"></i>
+                                </div>
                                 <div>
-                                    <h6 class="text-muted mb-1">Pengeluaran Terakhir</h6>
-                                    <!-- <h4 class="fw-bold mb-0"><?= number_format(dataSiswa()); ?></h4> -->
+                                    <h6 class="text-muted mb-1">Jumlah transaksi</h6>
+                                    <h5 class="fw-bold mb-0"><?= $keluar['jumlahTransaksi']; ?> Transaksi</h5>
                                 </div>
                             </div>
                         </div>
@@ -210,10 +219,12 @@ if (isset($_GET['hapus'])) {
                     <div class="col-12 col-md-6">
                         <div class="card shadow-sm h-100">
                             <div class="card-body py-3 px-3 d-flex align-items-center gap-3">
-                                <div class="fs-3 text-primary">🔄</div>
+                                <div class="fs-3 text-warning">
+                                    <i class="fa-solid fa-sack-dollar"></i>
+                                </div>
                                 <div>
-                                    <h6 class="text-muted mb-1">-</h6>
-                                    <!-- <h4 class="fw-bold mb-0"><?= number_format(dataSiswa()); ?></h4> -->
+                                    <h6 class="text-muted mb-1">Sisa Saldo</h6>
+                                    <h5 class="fw-bold mb-0">Rp <?= number_format($keluar['saldo'], 0, ',', '.'); ?></h5>
                                 </div>
                             </div>
                         </div>

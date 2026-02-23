@@ -194,7 +194,7 @@ $totalNonaktif = mysqli_fetch_assoc(query("SELECT COUNT(*) AS total FROM murid W
                             <div class="card h-100 shadow-sm">
                                 <div class="card-body border border-primary rounded d-flex flex-column justify-content-center">
                                     <h6 class="text-muted mb-1">Total Murid</h6>
-                                    <h4 class="fw-bold mb-0"><?= $totalMurid ?></h4>
+                                    <h5 class="fw-bold mb-0"><?= $totalMurid ?></h5>
                                 </div>
                             </div>
                         </div>
@@ -204,7 +204,7 @@ $totalNonaktif = mysqli_fetch_assoc(query("SELECT COUNT(*) AS total FROM murid W
                             <div class="card h-100 shadow-sm">
                                 <div class="card-body border border-success rounded d-flex flex-column justify-content-center">
                                     <h6 class="text-muted mb-1">Murid Aktif</h6>
-                                    <h4 class="fw-bold mb-0"><?= $totalAktif ?></h4>
+                                    <h5 class="fw-bold mb-0"><?= $totalAktif ?></h5>
                                 </div>
                             </div>
                         </div>
@@ -214,7 +214,7 @@ $totalNonaktif = mysqli_fetch_assoc(query("SELECT COUNT(*) AS total FROM murid W
                             <div class="card h-100 shadow-sm">
                                 <div class="card-body border border-danger rounded d-flex flex-column justify-content-center">
                                     <h6 class="text-muted mb-1">Murid Tidak Aktif</h6>
-                                    <h4 class="fw-bold mb-0"><?= $totalNonaktif ?></h4>
+                                    <h5 class="fw-bold mb-0"><?= $totalNonaktif ?></h5>
                                 </div>
                             </div>
                         </div>

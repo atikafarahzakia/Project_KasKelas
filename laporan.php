@@ -117,6 +117,15 @@ include 'config/app.php';
                                 </div>
                             </div>
                         </div>
+                        <!-- 4 -->
+                        <div class="col-md-3">
+                            <div class="card h-100">
+                                <div class="card-body border border-warning rounded d-flex flex-column justify-content-center shadow">
+                                    <h6 class="text-muted mb-1">Saldo Akhir</h6>
+                                    <!-- <h4 class="fw-bold mb-0"><?= number_format(dataSiswa()); ?></h4> -->
+                                </div>
+                            </div>
+                        </div>
                         <!-- 1 -->
                         <div class="col-md-3">
                             <div class="card h-100">
@@ -131,15 +140,6 @@ include 'config/app.php';
                             <div class="card h-100">
                                 <div class="card-body border border-danger rounded d-flex flex-column justify-content-center shadow">
                                     <h6 class="text-muted mb-1">Total Kas Keluar</h6>
-                                    <!-- <h4 class="fw-bold mb-0"><?= number_format(dataSiswa()); ?></h4> -->
-                                </div>
-                            </div>
-                        </div>
-                        <!-- 4 -->
-                        <div class="col-md-3">
-                            <div class="card h-100">
-                                <div class="card-body border border-warning rounded d-flex flex-column justify-content-center shadow">
-                                    <h6 class="text-muted mb-1">Saldo Akhir</h6>
                                     <!-- <h4 class="fw-bold mb-0"><?= number_format(dataSiswa()); ?></h4> -->
                                 </div>
                             </div>
