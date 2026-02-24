@@ -1,8 +1,20 @@
 <?php
 session_start();
 include 'config/app.php';
-// $data = query("SELECT * FROM transaksi");
+
+// Search logic
+$search = isset($_GET['search']) ? $_GET['search'] : '';
+
+// Ambil data ringkasan dari function di app.php
+$masuk = ringkasanKasMasuk();
+$keluar = ringkasanKasKeluar();
+
+$totalMasuk = $masuk['totalKasMasuk'];
+$totalKeluar = $keluar['totalKeluar'];
+$saldoAwal = 0;
+$saldoAkhir = $keluar['saldo'];
 ?>
+
 
 <!doctype html>
 <html lang="en">
@@ -113,7 +125,7 @@ include 'config/app.php';
                             <div class="card h-100">
                                 <div class="card-body border border-info rounded d-flex flex-column justify-content-center shadow">
                                     <h6 class="text-muted mb-1">Saldo Awal</h6>
-                                    <!-- <h4 class="fw-bold mb-0"><?= number_format(dataSiswa()); ?></h4> -->
+                                    <h5 class="fw-bold mb-0">Rp <?= number_format($saldoAwal, 0, ',', '.'); ?></h5>
                                 </div>
                             </div>
                         </div>
@@ -122,7 +134,7 @@ include 'config/app.php';
                             <div class="card h-100">
                                 <div class="card-body border border-warning rounded d-flex flex-column justify-content-center shadow">
                                     <h6 class="text-muted mb-1">Saldo Akhir</h6>
-                                    <!-- <h4 class="fw-bold mb-0"><?= number_format(dataSiswa()); ?></h4> -->
+                                    <h5 class="fw-bold mb-0 <?= $saldoAkhir < 0 ? 'text-danger' : 'text-success' ?>">Rp <?= number_format($saldoAkhir, 0, ',', '.'); ?></h5>
                                 </div>
                             </div>
                         </div>
@@ -131,7 +143,7 @@ include 'config/app.php';
                             <div class="card h-100">
                                 <div class="card-body border border-success rounded d-flex flex-column justify-content-center shadow">
                                     <h6 class="text-muted mb-1">Total Kas Masuk</h6>
-                                    <!-- <h4 class="fw-bold mb-0"><?= number_format(dataSiswa()); ?></h4> -->
+                                    <h5 class="fw-bold mb-0">Rp <?= number_format($totalMasuk, 0, ',', '.'); ?></h5>
                                 </div>
                             </div>
                         </div>
@@ -140,7 +152,7 @@ include 'config/app.php';
                             <div class="card h-100">
                                 <div class="card-body border border-danger rounded d-flex flex-column justify-content-center shadow">
                                     <h6 class="text-muted mb-1">Total Kas Keluar</h6>
-                                    <!-- <h4 class="fw-bold mb-0"><?= number_format(dataSiswa()); ?></h4> -->
+                                    <h5 class="fw-bold mb-0">Rp <?= number_format($totalKeluar, 0, ',', '.'); ?></h5>
                                 </div>
                             </div>
                         </div>
@@ -150,14 +162,19 @@ include 'config/app.php';
                 <!-- grafik -->
 
                 <!-- status pembayaran -->
-                <div class="card mt-5">
+                <div class="card mt-4">
                     <div class="card-body">
                         <h5>Report</h5>
                         <hr>
                         <div class="row">
                             <!-- cari -->
                             <div class="col">
-                                <input type="search" class="form-control" placeholder="Search">
+                                <form method="GET" id="searchForm">
+                                    <div class="input-group">
+                                        <input type="text" name="search" class="form-control" placeholder="Cari..." id="searchInput" value="<?= htmlspecialchars($search ?? ''); ?>">
+                                        <button type="submit" class="btn btn-primary">Cari</button>
+                                    </div>
+                                </form>
                             </div>
                             <div class="col-md-3">
                                 <select id="inputState" class="form-select">
@@ -181,7 +198,12 @@ include 'config/app.php';
                             </thead>
                             <tbody>
                                 <?php
-                                $query = mysqli_query($db, "SELECT tanggal, jenis, jumlah, deskripsi FROM transaksi");
+                                if ($search) {
+                                    $search_escaped = mysqli_real_escape_string($db, $search);
+                                    $query = mysqli_query($db, "SELECT tanggal, jenis, jumlah, deskripsi FROM transaksi WHERE deskripsi LIKE '%$search_escaped%' ORDER BY tanggal DESC");
+                                } else {
+                                    $query = mysqli_query($db, "SELECT tanggal, jenis, jumlah, deskripsi FROM transaksi ORDER BY tanggal DESC");
+                                }
                                 while ($row = mysqli_fetch_assoc($query)) {
                                 ?>
                                     <tr>
@@ -215,6 +237,18 @@ include 'config/app.php';
         src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.min.js"
         integrity="sha384-BBtl+eGJRgqQAUMxJ7pMwbEyER4l1g+O15P+16Ep7Q9Q+zqX6gSbd85u4mG4QzX+"
         crossorigin="anonymous"></script>
+    
+    <script>
+        // Auto-reset search ketika input kosong
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.addEventListener('input', function() {
+                if (this.value === '') {
+                    window.location.href = 'laporan.php';
+                }
+            });
+        }
+    </script>
 </body>
 
 </html>

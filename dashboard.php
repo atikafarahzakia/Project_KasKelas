@@ -5,16 +5,23 @@ if (!isset($_SESSION['login']))
 include 'config/app.php';
 
 $kas_wajib = 20000;
-$q = query("
-    SELECT murid.id_murid, murid.nama,
-           IFNULL(SUM(transaksi.jumlah), 0) AS total
-    FROM murid
-    LEFT JOIN transaksi 
-        ON murid.id_murid = transaksi.id_murid
-        AND transaksi.jenis = 'Masuk'
-        AND MONTH(transaksi.tanggal) = MONTH(CURDATE())
-    GROUP BY murid.id_murid
-");
+
+// Logika untuk search
+$search = isset($_GET['search']) ? $_GET['search'] : '';
+if ($search) {
+    $q = searchMurid($search);
+} else {
+    $q = query("
+        SELECT murid.id_murid, murid.nama,
+               IFNULL(SUM(transaksi.jumlah), 0) AS total
+        FROM murid
+        LEFT JOIN transaksi 
+            ON murid.id_murid = transaksi.id_murid
+            AND transaksi.jenis = 'Masuk'
+            AND MONTH(transaksi.tanggal) = MONTH(CURDATE())
+        GROUP BY murid.id_murid
+    ");
+}
 
 $masukBulanIni  = kasMasukBulanIni();
 $keluarBulanIni = kasKeluarBulanIni();
@@ -133,15 +140,9 @@ $keluar = ringkasanKasKeluar();
                     <div class="card mt-4">
                         <card class="card-body">
                             <h3>Total Saldo Kas</h3>
+                            <hr>
                             <!-- ambil dari database -->
                             <h5>Rp.<?= number_format(getSaldo()); ?></h5>
-                            <hr>
-                            <p>
-                                Kas Bulan Ini:
-                                <strong class="<?= $arusBulanIni < 0 ? 'text-danger' : 'text-success'; ?>">
-                                    Rp <?= number_format($arusBulanIni, 0, ',', '.'); ?>
-                                </strong>
-                            </p>
                         </card>
                     </div>
                 </div>
@@ -155,7 +156,7 @@ $keluar = ringkasanKasKeluar();
                             <div class="card h-100">
                                 <div class="card-body border border-success rounded d-flex flex-column justify-content-center shadow">
                                     <h5>Kas Masuk</h5>
-                                    <h6 class="mb-0 fw-bold">
+                                    <h6 class="mb-0 fw-bold mb-3">
                                         Rp <?= number_format($masukBulanIni, 0, ',', '.'); ?>
                                     </h6>
                                     <small class="text-muted">Bulan ini</small>
@@ -167,7 +168,7 @@ $keluar = ringkasanKasKeluar();
                             <div class="card h-100">
                                 <div class="card-body border border-danger rounded d-flex flex-column justify-content-center shadow">
                                     <h5>Kas Keluar</h5>
-                                    <h6 class="mb-0 fw-bold">
+                                    <h6 class="mb-0 fw-bold mb-3">
                                         Rp <?= number_format($keluarBulanIni, 0, ',', '.'); ?>
                                     </h6>
                                     <small class="text-muted">Bulan ini</small>
@@ -180,7 +181,7 @@ $keluar = ringkasanKasKeluar();
                             <div class="card h-100">
                                 <div class="card-body border border-info rounded d-flex flex-column justify-content-center shadow">
                                     <h5>Arus Kas</h5>
-                                    <h6 class="mb-0 fw-bold <?= $arusBulanIni < 0 ? 'text-danger' : 'text-primary'; ?>">
+                                    <h6 class="mb-0 fw-bold mb-3 <?= $arusBulanIni < 0 ? 'text-danger' : 'text-primary'; ?>">
                                         Rp <?= number_format($arusBulanIni, 0, ',', '.'); ?>
                                     </h6>
                                     <small class="text-muted">Bulan ini</small>
@@ -209,7 +210,12 @@ $keluar = ringkasanKasKeluar();
                         <div class="row">
                             <!-- cari -->
                             <div class="col">
-                                <input type="search" class="form-control" placeholder="Search">
+                                <form method="GET" id="searchForm">
+                                    <div class="input-group">
+                                        <input type="text" name="search" class="form-control" placeholder="Cari nama siswa..." id="searchInput" value="<?= htmlspecialchars($search ?? ''); ?>">
+                                        <button type="submit" class="btn btn-primary">Cari</button>
+                                    </div>
+                                </form>
                             </div>
                             <div class="col-md-3">
                                 <select id="inputState" class="form-select">
@@ -272,6 +278,19 @@ $keluar = ringkasanKasKeluar();
         src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.min.js"
         integrity="sha384-BBtl+eGJRgqQAUMxJ7pMwbEyER4l1g+O15P+16Ep7Q9Q+zqX6gSbd85u4mG4QzX+"
         crossorigin="anonymous"></script>
+    
+    <script>
+        const searchInput = document.getElementById('searchInput');
+        const searchForm = document.getElementById('searchForm');
+        
+        // Auto-submit ketika input kosong
+        searchInput.addEventListener('input', function() {
+            if (this.value === '') {
+                // Reset ke halaman tanpa search parameter
+                window.location.href = 'dashboard.php';
+            }
+        });
+    </script>
 </body>
 
 </html>

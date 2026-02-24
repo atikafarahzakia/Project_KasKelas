@@ -206,3 +206,26 @@ function ringkasanStatusBayar($kas_wajib)
         'sebagian' => $sebagian
     ];
 }
+
+// ================== SEARCH MURID BERDASARKAN NAMA ==================
+function searchMurid($search = '')
+{
+    global $db;
+    
+    $search = mysqli_real_escape_string($db, $search);
+    
+    $q = "
+        SELECT murid.id_murid, murid.nama,
+               IFNULL(SUM(transaksi.jumlah), 0) AS total
+        FROM murid
+        LEFT JOIN transaksi 
+            ON murid.id_murid = transaksi.id_murid
+            AND transaksi.jenis = 'Masuk'
+            AND MONTH(transaksi.tanggal) = MONTH(CURDATE())
+        WHERE murid.nama LIKE '%$search%'
+        GROUP BY murid.id_murid
+        ORDER BY murid.nama ASC
+    ";
+    
+    return query($q);
+}

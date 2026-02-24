@@ -3,10 +3,22 @@ session_start();
 include 'config/app.php';
 
 $kas_wajib = 20000;
-$q = query("SELECT murid.id_murid,nama,IFNULL(SUM(jumlah),0) as total FROM murid
-LEFT JOIN transaksi ON murid.id_murid=transaksi.id_murid
-AND jenis='Masuk' AND MONTH(tanggal)=MONTH(CURDATE())
-GROUP BY murid.id_murid");
+$search = isset($_GET['search']) ? $_GET['search'] : '';
+
+if ($search) {
+    $search_escaped = mysqli_real_escape_string($GLOBALS['db'], $search);
+    $q = query("SELECT murid.id_murid,nama,IFNULL(SUM(jumlah),0) as total FROM murid
+    LEFT JOIN transaksi ON murid.id_murid=transaksi.id_murid
+    AND jenis='Masuk' AND MONTH(tanggal)=MONTH(CURDATE())
+    WHERE murid.nama LIKE '%$search_escaped%'
+    GROUP BY murid.id_murid
+    ORDER BY murid.nama ASC");
+} else {
+    $q = query("SELECT murid.id_murid,nama,IFNULL(SUM(jumlah),0) as total FROM murid
+    LEFT JOIN transaksi ON murid.id_murid=transaksi.id_murid
+    AND jenis='Masuk' AND MONTH(tanggal)=MONTH(CURDATE())
+    GROUP BY murid.id_murid");
+}
 
 $status = ringkasanStatusBayar($kas_wajib);
 ?>
@@ -161,14 +173,19 @@ $status = ringkasanStatusBayar($kas_wajib);
                 <!-- grafik -->
 
                 <!-- status pembayaran -->
-                <div class="card mt-5">
+                <div class="card mt-4">
                     <div class="card-body">
                         <h5>Status Pembayaran</h5>
                         <hr>
                         <div class="row">
                             <!-- cari -->
                             <div class="col">
-                                <input type="search" class="form-control" placeholder="Search">
+                                <form method="GET" id="searchForm">
+                                    <div class="input-group">
+                                        <input type="text" name="search" class="form-control" placeholder="Cari nama siswa..." id="searchInput" value="<?= htmlspecialchars($search ?? ''); ?>">
+                                        <button type="submit" class="btn btn-primary">Cari</button>
+                                    </div>
+                                </form>
                             </div>
                             <div class="col-md-3">
                                 <select id="inputState" class="form-select">
@@ -244,6 +261,18 @@ $status = ringkasanStatusBayar($kas_wajib);
         src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.min.js"
         integrity="sha384-BBtl+eGJRgqQAUMxJ7pMwbEyER4l1g+O15P+16Ep7Q9Q+zqX6gSbd85u4mG4QzX+"
         crossorigin="anonymous"></script>
+        
+    <script>
+        // Auto-reset search ketika input kosong
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.addEventListener('input', function() {
+                if (this.value === '') {
+                    window.location.href = 'statusbayar.php';
+                }
+            });
+        }
+    </script>
 </body>
 
 </html>

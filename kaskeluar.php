@@ -44,6 +44,9 @@ if (isset($_GET['hapus'])) {
     exit;
 }
 
+// search logic
+$search = isset($_GET['search']) ? $_GET['search'] : '';
+
 //ringkasan kas keluar
 $keluar = ringkasanKasKeluar();
 ?>
@@ -233,7 +236,7 @@ $keluar = ringkasanKasKeluar();
 
 
                 <!-- modal tambah kas -->
-                <div class="d-grid gap-2 mt-5">
+                <div class="d-grid gap-2 mt-4">
                     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalTambahKas">Tambah Kas Keluar</button>
                 </div>
                 <!-- Modal -->
@@ -292,7 +295,12 @@ $keluar = ringkasanKasKeluar();
                                 <h5>Daftar Kas Keluar</h5>
                                 <hr>
                                 <div class="mb-6">
-                                    <input type="text" class="form-control" placeholder="Search">
+                                    <form method="GET" id="searchForm">
+                                        <div class="input-group">
+                                            <input type="text" name="search" class="form-control" placeholder="Cari..." id="searchInput" value="<?= htmlspecialchars($search ?? ''); ?>">
+                                            <button type="submit" class="btn btn-primary">Cari</button>
+                                        </div>
+                                    </form>
                                 </div>
                                 <!-- tabel -->
                                 <table class="table table-hover table-striped border mt-3">
@@ -306,8 +314,18 @@ $keluar = ringkasanKasKeluar();
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <tr>
-                                            <?php
+                                        <?php
+                                        if ($search) {
+                                            $search_escaped = mysqli_real_escape_string($GLOBALS['db'], $search);
+                                            $kasKeluar = mysqli_query(
+                                                $db,
+                                                "SELECT id_transaksi, tanggal, jumlah, deskripsi
+                                                    FROM transaksi 
+                                                    WHERE jenis='keluar' 
+                                                    AND deskripsi LIKE '%$search_escaped%'
+                                                    ORDER BY tanggal DESC"
+                                            );
+                                        } else {
                                             $kasKeluar = mysqli_query(
                                                 $db,
                                                 "SELECT id_transaksi, tanggal, jumlah, deskripsi
@@ -315,7 +333,8 @@ $keluar = ringkasanKasKeluar();
                                                     WHERE jenis='keluar' 
                                                     ORDER BY tanggal DESC"
                                             );
-                                            while ($row = mysqli_fetch_assoc($kasKeluar)) :
+                                        }
+                                        while ($row = mysqli_fetch_assoc($kasKeluar)) :
                                             ?>
                                         <tr>
                                             <td><?= $row['tanggal']; ?></td>
@@ -334,7 +353,6 @@ $keluar = ringkasanKasKeluar();
                                             </td>
                                         </tr>
                                     <?php endwhile; ?>
-                                    </tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -363,6 +381,16 @@ $keluar = ringkasanKasKeluar();
             const modalTambahKas = new bootstrap.Modal(document.getElementById('modalTambahKas'));
             modalTambahKas.show();
         <?php endif; ?>
+
+        // Auto-reset search ketika input kosong
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.addEventListener('input', function() {
+                if (this.value === '') {
+                    window.location.href = 'kaskeluar.php';
+                }
+            });
+        }
     </script>
 </body>
 

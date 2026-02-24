@@ -43,7 +43,13 @@
     }
 
     // read
-    $data = query("SELECT * FROM transaksi");
+    $search = isset($_GET['search']) ? $_GET['search'] : '';
+    if ($search) {
+        $search_escaped = mysqli_real_escape_string($GLOBALS['db'], $search);
+        $data = query("SELECT transaksi.*, murid.nama FROM transaksi JOIN murid ON transaksi.id_murid = murid.id_murid WHERE murid.nama LIKE '%$search_escaped%' AND transaksi.jenis = 'masuk' ORDER BY transaksi.tanggal DESC");
+    } else {
+        $data = query("SELECT transaksi.*, murid.nama FROM transaksi JOIN murid ON transaksi.id_murid = murid.id_murid WHERE transaksi.jenis = 'masuk' ORDER BY transaksi.tanggal DESC");
+    }
 
     // ringkasan kas masuk
     $ringkasan = ringkasanKasMasuk();
@@ -242,7 +248,7 @@
                     </div>
 
                     <!-- Button Tambah Kas -->
-                    <div class="d-grid gap-2 mt-5">
+                    <div class="d-grid gap-2 mt-4">
                         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalTambahKas">
                             Tambah Uang Kas
                         </button>
@@ -311,7 +317,12 @@
                                     <h5>Daftar Kas Masuk</h5>
                                     <hr>
                                     <div class="mb-6">
-                                        <input type="text" class="form-control" placeholder="Search">
+                                        <form method="GET" id="searchForm">
+                                            <div class="input-group">
+                                                <input type="text" name="search" class="form-control" placeholder="Cari nama siswa..." id="searchInput" value="<?= htmlspecialchars($search ?? ''); ?>">
+                                                <button type="submit" class="btn btn-primary">Cari</button>
+                                            </div>
+                                        </form>
                                     </div>
                                     <!-- tabel -->
                                     <table class="table table-hover table-striped border mt-3">
@@ -326,16 +337,7 @@
 
                                         <tbody>
                                             <?php
-                                            $kasMasuk = mysqli_query(
-                                                $db,
-                                                "SELECT t.id_transaksi, t.tanggal, m.nama, t.jumlah, t.deskripsi
-                                                    FROM transaksi t
-                                                    JOIN murid m ON t.id_murid = m.id_murid
-                                                    WHERE t.jenis='masuk'
-                                                    ORDER BY t.tanggal"
-                                            );
-
-                                            while ($row = mysqli_fetch_assoc($kasMasuk)) :
+                                            while ($row = mysqli_fetch_assoc($data)) :
                                             ?>
                                                 <tr>
                                                     <td><?= $row['tanggal']; ?></td>
@@ -383,6 +385,16 @@
                 const modalTambahKas = new bootstrap.Modal(document.getElementById('modalTambahKas'));
                 modalTambahKas.show();
             <?php endif; ?>
+
+            // Auto-reset search ketika input kosong
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) {
+                searchInput.addEventListener('input', function() {
+                    if (this.value === '') {
+                        window.location.href = 'kasmasuk.php';
+                    }
+                });
+            }
         </script>
     </body>
 

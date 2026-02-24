@@ -46,7 +46,13 @@ if (isset($_GET['edit'])) {
 }
 
 // read
-$data = query("SELECT * FROM murid");
+$search = isset($_GET['search']) ? $_GET['search'] : '';
+if ($search) {
+    $search_escaped = mysqli_real_escape_string($GLOBALS['db'], $search);
+    $data = query("SELECT * FROM murid WHERE nama LIKE '%$search_escaped%' ORDER BY nama ASC");
+} else {
+    $data = query("SELECT * FROM murid");
+}
 
 // nomor urut mulai dari 1
 $no = 1;
@@ -118,8 +124,8 @@ $totalNonaktif = mysqli_fetch_assoc(query("SELECT COUNT(*) AS total FROM murid W
                         <a class="nav-link" href="kaskeluar.php">Kas Keluar</a>
                     </li>
                     <li class="nav-item">
-                            <a class="nav-link" href="iuran_khusus.php">Iuran Khusus</a>
-                        </li>
+                        <a class="nav-link" href="iuran_khusus.php">Iuran Khusus</a>
+                    </li>
                     <li class="nav-item mt-4">
                         <small class="ms-3">Laporan</small>
                     </li>
@@ -222,7 +228,7 @@ $totalNonaktif = mysqli_fetch_assoc(query("SELECT COUNT(*) AS total FROM murid W
                 </div>
 
                 <!-- modal murid -->
-                <div class="d-grid gap-2 mt-5">
+                <div class="d-grid gap-2 mt-4">
                     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalTambahKas">Tambah Murid</button>
                 </div>
                 <!-- Modal -->
@@ -278,7 +284,12 @@ $totalNonaktif = mysqli_fetch_assoc(query("SELECT COUNT(*) AS total FROM murid W
                                 <div class="row">
                                     <!-- cari -->
                                     <div class="col">
-                                        <input type="search" class="form-control" placeholder="Search">
+                                        <form method="GET" id="searchForm">
+                                            <div class="input-group">
+                                                <input type="text" name="search" class="form-control" placeholder="Cari nama siswa..." id="searchInput" value="<?= htmlspecialchars($search ?? ''); ?>">
+                                                <button type="submit" class="btn btn-primary">Cari</button>
+                                            </div>
+                                        </form>
                                     </div>
                                     <div class="col-md-3">
                                         <select id="inputState" class="form-select">
@@ -361,6 +372,16 @@ $totalNonaktif = mysqli_fetch_assoc(query("SELECT COUNT(*) AS total FROM murid W
             const modalTambahKas = new bootstrap.Modal(document.getElementById('modalTambahKas'));
             modalTambahKas.show();
         <?php endif; ?>
+
+        // Auto-reset search ketika input kosong
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.addEventListener('input', function() {
+                if (this.value === '') {
+                    window.location.href = 'datamurid.php';
+                }
+            });
+        }
     </script>
 </body>
 
