@@ -6,8 +6,8 @@
 
     // Tambah data kas masuk
     if (isset($_POST['simpan'])) {
-        query("INSERT INTO transaksi (id_murid, tanggal, jenis, jumlah, keterangan, deskripsi) 
-            VALUES ('$_POST[id_murid]', '$_POST[tanggal]', 'masuk', '$_POST[jumlah]', 'Kas Masuk', '$_POST[deskripsi]')");
+        query("INSERT INTO transaksi (id_murid, tanggal, jenis, jumlah, keterangan) 
+            VALUES ('$_POST[id_murid]', '$_POST[tanggal]', 'masuk', '$_POST[jumlah]', 'Kas Masuk')");
         // agar data tidak ke-duplicate saat reload
         header("Location: kasmasuk.php?success=tambah");
         exit;
@@ -17,8 +17,7 @@
     if (isset($_POST['update'])) {
         query("UPDATE transaksi SET
             tanggal = '$_POST[tanggal]',
-            jumlah  = '$_POST[jumlah]',
-            deskripsi  = '$_POST[deskripsi]'
+            jumlah  = '$_POST[jumlah]'
             WHERE id_transaksi = '$_POST[id_transaksi]'
         ");
 
@@ -115,9 +114,6 @@
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="kaskeluar.php">Kas Keluar</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="iuran_khusus.php">Iuran Khusus</a>
                         </li>
                         <li class="nav-item mt-4">
                             <small class="ms-3">Laporan</small>
@@ -289,10 +285,6 @@
                                         <div class="mb-3">
                                             <label class="form-label">Jumlah</label>
                                             <input type="number" name="jumlah" class="form-control" value="<?= $edit['jumlah'] ?? '' ?>" required>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label">Deskripsi</label>
-                                            <textarea class="form-control" name="deskripsi" rows="2"><?= $edit['deskripsi'] ?? 'Kas Masuk' ?></textarea>
                                         </div>
                                     </div>
                                     <!-- Footer -->

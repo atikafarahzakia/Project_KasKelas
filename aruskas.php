@@ -66,7 +66,7 @@ $q = query("
                     <li class="nav-item mt-4">
                         <small class="ms-3">Menu Utama</small>
                     </li>
-                    <?php if ($_SESSION['role'] == 'Bendahara'): ?>
+                    <?php if ($_SESSION['role'] == 'bendahara'): ?>
                         <li class="nav-item">
                             <a class="nav-link" href="datamurid.php">Data Murid</a>
                         </li>
@@ -75,9 +75,6 @@ $q = query("
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="kaskeluar.php">Kas Keluar</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="iuran_khusus.php">Iuran Khusus</a>
                         </li>
                         <li class="nav-item mt-4">
                             <small class="ms-3">Laporan</small>

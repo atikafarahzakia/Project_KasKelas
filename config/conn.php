@@ -1,5 +1,5 @@
 <?php
-$db = mysqli_connect('localhost', 'root', '', 'kaskelas');
+$db = mysqli_connect('localhost', 'root', '', 'kaskelas2');
 
 // //cek koneksi
 // if (!$db){

@@ -62,7 +62,7 @@ $saldoAkhir = $keluar['saldo'];
                     <li class="nav-item mt-4">
                         <small class="ms-3">Menu Utama</small>
                     </li>
-                    <?php if ($_SESSION['role'] == 'Bendahara'): ?>
+                    <?php if ($_SESSION['role'] == 'bendahara'): ?>
                         <li class="nav-item">
                             <a class="nav-link" href="datamurid.php">Data Murid</a>
                         </li>
@@ -71,9 +71,6 @@ $saldoAkhir = $keluar['saldo'];
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="kaskeluar.php">Kas Keluar</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="iuran_khusus.php">Iuran Khusus</a>
                         </li>
                         <li class="nav-item mt-4">
                             <small class="ms-3">Laporan</small>
@@ -193,28 +190,26 @@ $saldoAkhir = $keluar['saldo'];
                                     <th scope="col">Tanggal</th>
                                     <th scope="col">Jenis</th>
                                     <th scope="col">Jumlah</th>
-                                    <th scope="col">Deskripsi</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php
                                 if ($search) {
                                     $search_escaped = mysqli_real_escape_string($db, $search);
-                                    $query = mysqli_query($db, "SELECT tanggal, jenis, jumlah, deskripsi FROM transaksi WHERE deskripsi LIKE '%$search_escaped%' ORDER BY tanggal DESC");
+                                    $query = mysqli_query($db, "SELECT tanggal, jenis, jumlah FROM transaksi ORDER BY tanggal DESC");
                                 } else {
-                                    $query = mysqli_query($db, "SELECT tanggal, jenis, jumlah, deskripsi FROM transaksi ORDER BY tanggal DESC");
+                                    $query = mysqli_query($db, "SELECT tanggal, jenis, jumlah FROM transaksi ORDER BY tanggal DESC");
                                 }
                                 while ($row = mysqli_fetch_assoc($query)) {
                                 ?>
                                     <tr>
                                         <td><?= $row['tanggal']; ?></td>
                                         <td>
-                                            <span class="badge <?= ($row['jenis'] == 'Masuk') ? 'bg-success' : 'bg-danger' ?>">
+                                            <span class="badge <?= ($row['jenis'] == 'masuk') ? 'bg-success' : 'bg-danger' ?>">
                                                 <?= ucfirst($row['jenis']); ?>
                                             </span>
                                         </td>
                                         <td><?= number_format($row['jumlah']); ?></td>
-                                        <td><?= $row['deskripsi'] ?></td>
                                     </tr>
                                 <?php } ?>
                             </tbody>

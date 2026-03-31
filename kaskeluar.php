@@ -16,8 +16,7 @@ if (isset($_POST['simpan'])) {
 if (isset($_POST['update'])) {
     query("UPDATE transaksi SET
         tanggal = '$_POST[tanggal]',
-        jumlah  = '$_POST[jumlah]',
-        deskripsi  = '$_POST[deskripsi]'
+        jumlah  = '$_POST[jumlah]'
         WHERE id_transaksi = '$_POST[id_transaksi]'
         AND jenis='keluar'
 ");
@@ -105,9 +104,6 @@ $keluar = ringkasanKasKeluar();
                     </li>
                     <li class="nav-item">
                         <a class="nav-link active" href="kaskeluar.php">Kas Keluar</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="iuran_khusus.php">Iuran Khusus</a>
                     </li>
                     <li class="nav-item mt-4">
                         <small class="ms-3">Laporan</small>
@@ -266,10 +262,6 @@ $keluar = ringkasanKasKeluar();
                                         <label class="form-label">Jumlah Uang</label>
                                         <input type="number" name="jumlah" class="form-control" placeholder="Contoh: 10000" value="<?= $edit['jumlah'] ?? '' ?>" required>
                                     </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">Deskripsi</label>
-                                        <textarea class="form-control" name="deskripsi" rows="2"><?= $edit['deskripsi'] ?? '' ?></textarea>
-                                    </div>
                                 </div>
                                 <!-- Footer -->
                                 <div class="modal-footer">
@@ -309,7 +301,6 @@ $keluar = ringkasanKasKeluar();
                                             <th scope="col">Tanggal</th>
                                             <th scope="col">Jumlah</th>
                                             <!-- <th scope="col">Sisa Kas</th> -->
-                                            <th scope="col">Deskripsi</th>
                                             <th scope="col">Aksi</th>
                                         </tr>
                                     </thead>
@@ -319,16 +310,15 @@ $keluar = ringkasanKasKeluar();
                                             $search_escaped = mysqli_real_escape_string($GLOBALS['db'], $search);
                                             $kasKeluar = mysqli_query(
                                                 $db,
-                                                "SELECT id_transaksi, tanggal, jumlah, deskripsi
+                                                "SELECT id_transaksi, tanggal, jumlah
                                                     FROM transaksi 
                                                     WHERE jenis='keluar' 
-                                                    AND deskripsi LIKE '%$search_escaped%'
                                                     ORDER BY tanggal DESC"
                                             );
                                         } else {
                                             $kasKeluar = mysqli_query(
                                                 $db,
-                                                "SELECT id_transaksi, tanggal, jumlah, deskripsi
+                                                "SELECT id_transaksi, tanggal, jumlah
                                                     FROM transaksi 
                                                     WHERE jenis='keluar' 
                                                     ORDER BY tanggal DESC"
@@ -339,7 +329,6 @@ $keluar = ringkasanKasKeluar();
                                         <tr>
                                             <td><?= $row['tanggal']; ?></td>
                                             <td><?= number_format($row['jumlah'], 0, ',', '.'); ?></td>
-                                            <td><?= $row['deskripsi']; ?></td>
                                             <td>
                                                 <a href="?edit=<?= $row['id_transaksi']; ?>"
                                                     class="btn btn-sm btn-warning">
