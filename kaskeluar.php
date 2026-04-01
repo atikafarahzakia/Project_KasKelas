@@ -69,14 +69,26 @@ $tahun = isset($_GET['tahun']) ? $_GET['tahun'] : '';
 $hasKategoriColumn = mysqli_num_rows(query("SHOW COLUMNS FROM transaksi LIKE 'id_kategori'")) > 0;
 
 // query data kaskeluar dengan filter
-$where = "jenis='keluar'";
+$where = "transaksi.jenis='keluar'";
 if ($bulan && $tahun) {
-    $where .= " AND MONTH(tanggal) = $bulan AND YEAR(tanggal) = $tahun";
+    $where .= " AND MONTH(transaksi.tanggal) = $bulan AND YEAR(transaksi.tanggal) = $tahun";
 } elseif ($tahun) {
-    $where .= " AND YEAR(tanggal) = $tahun";
+    $where .= " AND YEAR(transaksi.tanggal) = $tahun";
 } elseif ($bulan) {
-    $where .= " AND MONTH(tanggal) = $bulan";
+    $where .= " AND MONTH(transaksi.tanggal) = $bulan";
 }
+
+if ($search) {
+    $search_escaped = mysqli_real_escape_string($db, $search);
+    $where .= " AND (";
+
+    if ($hasKategoriColumn) {
+        $where .= "kategori.nama LIKE '%$search_escaped%' OR ";
+    }
+
+    $where .= "transaksi.jumlah LIKE '%$search_escaped%' OR transaksi.keterangan LIKE '%$search_escaped%')";
+}
+
 $keluar = ringkasanKasKeluar();
 ?>
 

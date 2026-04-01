@@ -6,10 +6,15 @@ include 'config/app.php';
 $search = isset($_GET['search']) ? $_GET['search'] : '';
 $bulan = isset($_GET['bulan']) ? $_GET['bulan'] : '';
 $tahun = isset($_GET['tahun']) ? $_GET['tahun'] : '';
+$jenis = isset($_GET['jenis']) ? $_GET['jenis'] : '';
+
+// Cek apakah kolom kategori ada
+$hasKategoriColumn = mysqli_num_rows(query("SHOW COLUMNS FROM transaksi LIKE 'id_kategori'")) > 0;
 
 // Ambil data ringkasan dari function di app.php
 $masuk = ringkasanKasMasuk();
 $keluar = ringkasanKasKeluar();
+$totalSiswa = dataSiswa();
 
 $totalMasuk = $masuk['totalKasMasuk'];
 $totalKeluar = $keluar['totalKeluar'];
@@ -122,9 +127,27 @@ $saldoAkhir = $keluar['saldo'];
                         <!-- 1 -->
                         <div class="col-md-3">
                             <div class="card h-100">
+                                <div class="card-body border border-success rounded d-flex flex-column justify-content-center shadow">
+                                    <h6 class="text-muted mb-1">Total Kas Masuk</h6>
+                                    <h5 class="fw-bold mb-0">Rp <?= number_format($totalMasuk, 0, ',', '.'); ?></h5>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- 2 -->
+                        <div class="col-md-3">
+                            <div class="card h-100">
+                                <div class="card-body border border-danger rounded d-flex flex-column justify-content-center shadow">
+                                    <h6 class="text-muted mb-1">Total Kas Keluar</h6>
+                                    <h5 class="fw-bold mb-0">Rp <?= number_format($totalKeluar, 0, ',', '.'); ?></h5>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- 3 -->
+                        <div class="col-md-3">
+                            <div class="card h-100">
                                 <div class="card-body border border-info rounded d-flex flex-column justify-content-center shadow">
-                                    <h6 class="text-muted mb-1">Saldo Awal</h6>
-                                    <h5 class="fw-bold mb-0">Rp <?= number_format($saldoAwal, 0, ',', '.'); ?></h5>
+                                    <h6 class="text-muted mb-1">Saldo Akhir</h6>
+                                    <h5 class="fw-bold mb-0">Rp <?= number_format($saldoAkhir, 0, ',', '.'); ?></h5>
                                 </div>
                             </div>
                         </div>
@@ -132,26 +155,8 @@ $saldoAkhir = $keluar['saldo'];
                         <div class="col-md-3">
                             <div class="card h-100">
                                 <div class="card-body border border-warning rounded d-flex flex-column justify-content-center shadow">
-                                    <h6 class="text-muted mb-1">Saldo Akhir</h6>
-                                    <h5 class="fw-bold mb-0">Rp <?= number_format($saldoAkhir, 0, ',', '.'); ?></h5>
-                                </div>
-                            </div>
-                        </div>
-                        <!-- 1 -->
-                        <div class="col-md-3">
-                            <div class="card h-100">
-                                <div class="card-body border border-success rounded d-flex flex-column justify-content-center shadow">
-                                    <h6 class="text-muted mb-1">Total Kas Masuk</h6>
-                                    <h5 class="fw-bold mb-0">Rp <?= number_format($totalMasuk, 0, ',', '.'); ?></h5>
-                                </div>
-                            </div>
-                        </div>
-                        <!-- 3 -->
-                        <div class="col-md-3">
-                            <div class="card h-100">
-                                <div class="card-body border border-danger rounded d-flex flex-column justify-content-center shadow">
-                                    <h6 class="text-muted mb-1">Total Kas Keluar</h6>
-                                    <h5 class="fw-bold mb-0">Rp <?= number_format($totalKeluar, 0, ',', '.'); ?></h5>
+                                    <h6 class="text-muted mb-1">Siswa Aktif</h6>
+                                    <h5 class="fw-bold mb-0"><?= $totalSiswa; ?> Siswa</h5>
                                 </div>
                             </div>
                         </div>
@@ -170,14 +175,22 @@ $saldoAkhir = $keluar['saldo'];
                             <div class="col">
                                 <form method="GET" id="searchForm">
                                     <div class="row g-2">
-                                        <div class="col-md-6">
+                                        <div class="col-md-5">
                                             <small class="text-muted d-block mb-2">Cari berdasarkan data</small>
                                             <input type="text" name="search" class="form-control" placeholder="Cari..." id="searchInput" value="<?= htmlspecialchars($search ?? ''); ?>">
                                         </div>
                                         <div class="col-md-3">
-                                            <small class="text-muted d-block mb-2">Filter berdasarkan bulan</small>
+                                            <small class="text-muted d-block mb-2">Filter berdasarkan jenis</small>
+                                            <select name="jenis" class="form-select">
+                                                <option value="">Semua Jenis</option>
+                                                <option value="masuk" <?= $jenis == 'masuk' ? 'selected' : '' ?>>Kas Masuk</option>
+                                                <option value="keluar" <?= $jenis == 'keluar' ? 'selected' : '' ?>>Kas Keluar</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <small class="text-muted d-block mb-2">Bulan</small>
                                             <select name="bulan" class="form-select">
-                                                <option value="">Pilih Bulan</option>
+                                                <option value="">Semua</option>
                                                 <option value="1" <?= $bulan == 1 ? 'selected' : '' ?>>Januari</option>
                                                 <option value="2" <?= $bulan == 2 ? 'selected' : '' ?>>Februari</option>
                                                 <option value="3" <?= $bulan == 3 ? 'selected' : '' ?>>Maret</option>
@@ -192,8 +205,8 @@ $saldoAkhir = $keluar['saldo'];
                                                 <option value="12" <?= $bulan == 12 ? 'selected' : '' ?>>Desember</option>
                                             </select>
                                         </div>
-                                        <div class="col-md-3">
-                                            <small class="text-muted d-block mb-2">Filter berdasarkan tahun</small>
+                                        <div class="col-md-2">
+                                            <small class="text-muted d-block mb-2">Tahun</small>
                                             <input type="number" name="tahun" class="form-control" placeholder="Tahun" value="<?= htmlspecialchars($tahun ?? ''); ?>" min="2000">
                                         </div>
                                         <div class="col-md-12">
@@ -210,36 +223,64 @@ $saldoAkhir = $keluar['saldo'];
                                 <tr>
                                     <th scope="col">Tanggal</th>
                                     <th scope="col">Jenis</th>
+                                    <?php if ($hasKategoriColumn): ?>
+                                        <th scope="col">Kategori</th>
+                                    <?php endif; ?>
                                     <th scope="col">Jumlah</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php
                                 $where = "1=1";
-                                if ($bulan && $tahun) {
-                                    $where .= " AND MONTH(tanggal) = $bulan AND YEAR(tanggal) = $tahun";
-                                } elseif ($tahun) {
-                                    $where .= " AND YEAR(tanggal) = $tahun";
-                                } elseif ($bulan) {
-                                    $where .= " AND MONTH(tanggal) = $bulan";
+
+                                if ($jenis) {
+                                    $where .= " AND transaksi.jenis = '$jenis'";
                                 }
-                                
-                                $query = mysqli_query($db, "SELECT tanggal, jenis, jumlah FROM transaksi WHERE $where ORDER BY tanggal DESC");
+
+                                if ($bulan && $tahun) {
+                                    $where .= " AND MONTH(transaksi.tanggal) = $bulan AND YEAR(transaksi.tanggal) = $tahun";
+                                } elseif ($tahun) {
+                                    $where .= " AND YEAR(transaksi.tanggal) = $tahun";
+                                } elseif ($bulan) {
+                                    $where .= " AND MONTH(transaksi.tanggal) = $bulan";
+                                }
+
+                                if ($hasKategoriColumn) {
+                                    $query = mysqli_query($db, "
+                                        SELECT transaksi.tanggal, transaksi.jenis, transaksi.jumlah, kategori.nama AS kategori
+                                        FROM transaksi
+                                        LEFT JOIN kategori ON transaksi.id_kategori = kategori.id_kategori
+                                        WHERE $where
+                                        ORDER BY transaksi.tanggal DESC
+                                    ");
+                                } else {
+                                    $query = mysqli_query($db, "
+                                        SELECT tanggal, jenis, jumlah
+                                        FROM transaksi
+                                        WHERE $where
+                                        ORDER BY tanggal DESC
+                                    ");
+                                }
+
                                 $jumlahData = mysqli_num_rows($query);
+                                $colspan = $hasKategoriColumn ? '4' : '3';
                                 if ($jumlahData == 0) {
-                                    echo '<tr><td colspan="3" class="text-center text-muted py-4">Tidak ada data</td></tr>';
+                                    echo '<tr><td colspan="' . $colspan . '" class="text-center text-muted py-4">Tidak ada data</td></tr>';
                                 } else {
                                     while ($row = mysqli_fetch_assoc($query)) {
                                 ?>
-                                    <tr>
-                                        <td><?= $row['tanggal']; ?></td>
-                                        <td>
-                                            <span class="badge <?= ($row['jenis'] == 'masuk') ? 'bg-success' : 'bg-danger' ?>">
-                                                <?= ucfirst($row['jenis']); ?>
-                                            </span>
-                                        </td>
-                                        <td><?= number_format($row['jumlah']); ?></td>
-                                    </tr>
+                                        <tr>
+                                            <td><?= $row['tanggal']; ?></td>
+                                            <td>
+                                                <span class="badge <?= ($row['jenis'] == 'masuk') ? 'bg-success' : 'bg-danger' ?>">
+                                                    <?= ucfirst($row['jenis']); ?>
+                                                </span>
+                                            </td>
+                                            <?php if ($hasKategoriColumn): ?>
+                                                <td><?= $row['kategori'] ?? '-'; ?></td>
+                                            <?php endif; ?>
+                                            <td><?= number_format($row['jumlah']); ?></td>
+                                        </tr>
                                 <?php
                                     }
                                 }
@@ -264,7 +305,7 @@ $saldoAkhir = $keluar['saldo'];
         src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.min.js"
         integrity="sha384-BBtl+eGJRgqQAUMxJ7pMwbEyER4l1g+O15P+16Ep7Q9Q+zqX6gSbd85u4mG4QzX+"
         crossorigin="anonymous"></script>
-    
+
     <script>
         // Auto-reset search ketika input kosong
         const searchInput = document.getElementById('searchInput');
