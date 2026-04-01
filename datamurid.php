@@ -49,9 +49,9 @@ if (isset($_GET['edit'])) {
 $search = isset($_GET['search']) ? $_GET['search'] : '';
 if ($search) {
     $search_escaped = mysqli_real_escape_string($GLOBALS['db'], $search);
-    $data = query("SELECT * FROM murid WHERE nama LIKE '%$search_escaped%' ORDER BY nama ASC");
+    $data = query("SELECT * FROM murid WHERE nama LIKE '%$search_escaped%' ORDER BY id_murid DESC");
 } else {
-    $data = query("SELECT * FROM murid");
+    $data = query("SELECT * FROM murid ORDER BY id_murid DESC");
 }
 
 // nomor urut mulai dari 1
@@ -309,15 +309,19 @@ $totalNonaktif = mysqli_fetch_assoc(query("SELECT COUNT(*) AS total FROM murid W
                                         </tr>
                                     </thead>
                                     <tbody>
-                                    <tbody>
-                                        <?php foreach ($data as $m):
-                                            if (strtolower($m['status']) == 'aktif') {
-                                                $s = "Aktif";
-                                                $w = "success";
-                                            } else {
-                                                $s = "Tidak Aktif";
-                                                $w = "danger";
-                                            }
+                                        <?php 
+                                        $jumlahData = mysqli_num_rows($data);
+                                        if ($jumlahData == 0) {
+                                            echo '<tr><td colspan="5" class="text-center text-muted py-4">Tidak ada data</td></tr>';
+                                        } else {
+                                            while ($m = mysqli_fetch_assoc($data)):
+                                                if (strtolower($m['status']) == 'aktif') {
+                                                    $s = "Aktif";
+                                                    $w = "success";
+                                                } else {
+                                                    $s = "Tidak Aktif";
+                                                    $w = "danger";
+                                                }
                                         ?>
                                             <tr>
                                                 <td><?= $no++ ?></td>
@@ -336,9 +340,10 @@ $totalNonaktif = mysqli_fetch_assoc(query("SELECT COUNT(*) AS total FROM murid W
                                                     </a>
                                                 </td>
                                             </tr>
-                                        <?php endforeach; ?>
-                                    </tbody>
-
+                                        <?php
+                                            endwhile;
+                                        }
+                                        ?>
                                     </tbody>
                                 </table>
                             </div>

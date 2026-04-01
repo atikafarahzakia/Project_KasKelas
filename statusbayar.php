@@ -12,12 +12,13 @@ if ($search) {
     AND jenis='Masuk' AND MONTH(tanggal)=MONTH(CURDATE())
     WHERE murid.nama LIKE '%$search_escaped%'
     GROUP BY murid.id_murid
-    ORDER BY murid.nama ASC");
+    ORDER BY murid.id_murid DESC");
 } else {
     $q = query("SELECT murid.id_murid,nama,IFNULL(SUM(jumlah),0) as total FROM murid
     LEFT JOIN transaksi ON murid.id_murid=transaksi.id_murid
     AND jenis='Masuk' AND MONTH(tanggal)=MONTH(CURDATE())
-    GROUP BY murid.id_murid");
+    GROUP BY murid.id_murid
+    ORDER BY murid.id_murid DESC");
 }
 
 $status = ringkasanStatusBayar($kas_wajib);
@@ -207,17 +208,32 @@ $status = ringkasanStatusBayar($kas_wajib);
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php while ($m = mysqli_fetch_assoc($q)):
-                                    if ($m['total'] == 0) {
-                                        $s = "Belum Bayar";
-                                        $w = "danger";
-                                    } elseif ($m['total'] < $kas_wajib) {
-                                        $s = "Sebagian";
-                                        $w = "warning";
+                                <?php 
+                                $jumlahData = 0;
+                                $dataTemp = $q;
+                                while ($check = mysqli_fetch_assoc($dataTemp)) {
+                                    $jumlahData++;
+                                }
+                                mysqli_data_seek($q, 0);
+                                
+                                if ($jumlahData == 0) {
+                                    if ($_SESSION['role'] == 'bendahara') {
+                                        echo '<tr><td colspan="4" class="text-center text-muted py-4">Tidak ada data</td></tr>';
                                     } else {
-                                        $s = "Lunas";
-                                        $w = "success";
+                                        echo '<tr><td colspan="3" class="text-center text-muted py-4">Tidak ada data</td></tr>';
                                     }
+                                } else {
+                                    while ($m = mysqli_fetch_assoc($q)):
+                                        if ($m['total'] == 0) {
+                                            $s = "Belum Bayar";
+                                            $w = "danger";
+                                        } elseif ($m['total'] < $kas_wajib) {
+                                            $s = "Sebagian";
+                                            $w = "warning";
+                                        } else {
+                                            $s = "Lunas";
+                                            $w = "success";
+                                        }
                                 ?>
                                     <tr>
                                         <td><?= $m['nama']; ?></td>
@@ -237,7 +253,10 @@ $status = ringkasanStatusBayar($kas_wajib);
                                             </td>
                                         <?php endif; ?>
                                     </tr>
-                                <?php endwhile; ?>
+                                <?php
+                                    endwhile;
+                                }
+                                ?>
                             </tbody>
                         </table>
                     </div>

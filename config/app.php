@@ -33,7 +33,7 @@ function kasMasukBulanIni()
     $result = mysqli_fetch_assoc(mysqli_query($db, "
         SELECT SUM(jumlah) as total
         FROM transaksi
-        WHERE jenis='Masuk'
+        WHERE jenis='masuk'
         AND MONTH(tanggal)='$bulan'
         AND YEAR(tanggal)='$tahun'
     "));
@@ -52,7 +52,7 @@ function kasKeluarBulanIni()
     $result = mysqli_fetch_assoc(mysqli_query($db, "
         SELECT SUM(jumlah) as total
         FROM transaksi
-        WHERE jenis='Keluar'
+        WHERE jenis='keluar'
         AND MONTH(tanggal)='$bulan'
         AND YEAR(tanggal)='$tahun'
     "));
@@ -81,14 +81,14 @@ function ringkasanKasMasuk()
     $totalKasMasuk = mysqli_fetch_assoc(
         mysqli_query($db, "SELECT SUM(jumlah) as total 
                            FROM transaksi 
-                           WHERE jenis='Masuk'")
+                           WHERE jenis='masuk'")
     )['total'] ?? 0;
 
     // Kas masuk bulan ini
     $kasBulanIni = mysqli_fetch_assoc(
         mysqli_query($db, "SELECT SUM(jumlah) as total 
                            FROM transaksi 
-                           WHERE jenis='Masuk' 
+                           WHERE jenis='masuk' 
                            AND MONTH(tanggal)='$bulanIni' 
                            AND YEAR(tanggal)='$tahunIni'")
     )['total'] ?? 0;
@@ -97,7 +97,7 @@ function ringkasanKasMasuk()
     $sudahBayar = mysqli_fetch_assoc(
         mysqli_query($db, "SELECT COUNT(DISTINCT id_murid) as total 
                            FROM transaksi 
-                           WHERE jenis='Masuk' 
+                           WHERE jenis='masuk' 
                            AND MONTH(tanggal)='$bulanIni' 
                            AND YEAR(tanggal)='$tahunIni'")
     )['total'] ?? 0;
@@ -129,14 +129,14 @@ function ringkasanKasKeluar()
     $totalKeluar = mysqli_fetch_assoc(mysqli_query($db, "
         SELECT SUM(jumlah) as total 
         FROM transaksi 
-        WHERE jenis='Keluar'
+        WHERE jenis='keluar'
     "))['total'] ?? 0;
 
     // Total kas keluar bulan ini
     $keluarBulanIni = mysqli_fetch_assoc(mysqli_query($db, "
         SELECT SUM(jumlah) as total 
         FROM transaksi 
-        WHERE jenis='Keluar' 
+        WHERE jenis='keluar' 
         AND MONTH(tanggal)='$bulanIni' 
         AND YEAR(tanggal)='$tahunIni'
     "))['total'] ?? 0;
@@ -145,14 +145,14 @@ function ringkasanKasKeluar()
     $jumlahTransaksi = mysqli_fetch_assoc(mysqli_query($db, "
         SELECT COUNT(*) as total 
         FROM transaksi 
-        WHERE jenis='Keluar'
+        WHERE jenis='keluar'
     "))['total'] ?? 0;
 
     // Total kas masuk
     $totalMasuk = mysqli_fetch_assoc(mysqli_query($db, "
         SELECT SUM(jumlah) as total 
         FROM transaksi 
-        WHERE jenis='Masuk'
+        WHERE jenis='masuk'
     "))['total'] ?? 0;
 
     $saldo = $totalMasuk - $totalKeluar;
@@ -179,7 +179,7 @@ function ringkasanStatusBayar($kas_wajib)
         FROM murid
         LEFT JOIN transaksi 
             ON murid.id_murid = transaksi.id_murid
-            AND transaksi.jenis='Masuk'
+            AND transaksi.jenis='masuk'
             AND MONTH(transaksi.tanggal)='$bulan'
             AND YEAR(transaksi.tanggal)='$tahun'
         GROUP BY murid.id_murid
@@ -220,7 +220,7 @@ function searchMurid($search = '')
         FROM murid
         LEFT JOIN transaksi 
             ON murid.id_murid = transaksi.id_murid
-            AND transaksi.jenis = 'Masuk'
+            AND transaksi.jenis = 'masuk'
             AND MONTH(transaksi.tanggal) = MONTH(CURDATE())
         WHERE murid.nama LIKE '%$search%'
         GROUP BY murid.id_murid

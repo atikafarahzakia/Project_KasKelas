@@ -1,10 +1,22 @@
 <?php include 'config/app.php';
 session_start();
 
+$hasKategoriColumn = mysqli_num_rows(query("SHOW COLUMNS FROM transaksi LIKE 'id_kategori'")) > 0;
+$kategori = $hasKategoriColumn ? query("SELECT * FROM kategori") : null;
+
 // tambah
 if (isset($_POST['simpan'])) {
     if ($_POST['jumlah'] <= getSaldo()) {
-        query("INSERT INTO transaksi VALUES(NULL, NULL, '$_POST[tanggal]', 'keluar', '$_POST[jumlah]', 'Kas Keluar', '$_POST[jumlah]' )");
+        $columns = 'tanggal, jenis, jumlah, keterangan';
+        $values = "NOW(), 'keluar', '$_POST[jumlah]', 'Kas Keluar'";
+
+        if ($hasKategoriColumn) {
+            $kategoriValue = isset($_POST['id_kategori']) ? (int)$_POST['id_kategori'] : 0;
+            $columns .= ', id_kategori';
+            $values .= ", '$kategoriValue'";
+        }
+
+        query("INSERT INTO transaksi ($columns) VALUES ($values)");
     }
 
     // agar data tidak ke-duplicate saat reload
@@ -14,9 +26,15 @@ if (isset($_POST['simpan'])) {
 
 // edit
 if (isset($_POST['update'])) {
+    $kategori_update = '';
+    if ($hasKategoriColumn) {
+        $kategoriValue = isset($_POST['id_kategori']) ? (int)$_POST['id_kategori'] : 0;
+        $kategori_update = ", id_kategori = '$kategoriValue'";
+    }
+
     query("UPDATE transaksi SET
         tanggal = '$_POST[tanggal]',
-        jumlah  = '$_POST[jumlah]'
+        jumlah  = '$_POST[jumlah]'$kategori_update
         WHERE id_transaksi = '$_POST[id_transaksi]'
         AND jenis='keluar'
 ");
@@ -45,8 +63,20 @@ if (isset($_GET['hapus'])) {
 
 // search logic
 $search = isset($_GET['search']) ? $_GET['search'] : '';
+$bulan = isset($_GET['bulan']) ? $_GET['bulan'] : '';
+$tahun = isset($_GET['tahun']) ? $_GET['tahun'] : '';
 
-//ringkasan kas keluar
+$hasKategoriColumn = mysqli_num_rows(query("SHOW COLUMNS FROM transaksi LIKE 'id_kategori'")) > 0;
+
+// query data kaskeluar dengan filter
+$where = "jenis='keluar'";
+if ($bulan && $tahun) {
+    $where .= " AND MONTH(tanggal) = $bulan AND YEAR(tanggal) = $tahun";
+} elseif ($tahun) {
+    $where .= " AND YEAR(tanggal) = $tahun";
+} elseif ($bulan) {
+    $where .= " AND MONTH(tanggal) = $bulan";
+}
 $keluar = ringkasanKasKeluar();
 ?>
 
@@ -192,7 +222,7 @@ $keluar = ringkasanKasKeluar();
                                     <i class="fa-solid fa-chart-area"></i>
                                 </div>
                                 <div>
-                                    <h6 class="text-muted mb-1">Total kas keluar bulan ini</h6>
+                                    <h6 class="text-muted mb-1">Kas Keluar Bulan Ini</h6>
                                     <h5 class="fw-bold mb-0">Rp <?= number_format($keluar['keluarBulanIni'], 0, ',', '.'); ?></h5>
                                 </div>
                             </div>
@@ -254,9 +284,24 @@ $keluar = ringkasanKasKeluar();
                                         <input type="date"
                                             name="tanggal"
                                             class="form-control"
-                                            value="<?= $edit['tanggal'] ?? '' ?>"
-                                            required>
+                                            value="<?= $edit ? $edit['tanggal'] : date('Y-m-d') ?>"
+                                            readonly>
                                     </div>
+                                    <?php if ($hasKategoriColumn): ?>
+                                        <!-- Kategori -->
+                                        <div class="mb-3">
+                                            <label class="form-label">Kategori</label>
+                                            <select name="id_kategori" class="form-control" required>
+                                                <option value="">-- Pilih Kategori --</option>
+                                                <?php while ($cat = mysqli_fetch_assoc($kategori)): ?>
+                                                    <option value="<?= $cat['id_kategori']; ?>" <?= isset($edit) && $edit && $edit['id_kategori'] == $cat['id_kategori'] ? 'selected' : ''; ?>>
+                                                        <?= htmlspecialchars($cat['nama']); ?>
+                                                    </option>
+                                                <?php endwhile; ?>
+                                            </select>
+                                        </div>
+                                    <?php endif; ?>
+
                                     <!-- Jumlah -->
                                     <div class="mb-3">
                                         <label class="form-label">Jumlah Uang</label>
@@ -288,9 +333,36 @@ $keluar = ringkasanKasKeluar();
                                 <hr>
                                 <div class="mb-6">
                                     <form method="GET" id="searchForm">
-                                        <div class="input-group">
-                                            <input type="text" name="search" class="form-control" placeholder="Cari..." id="searchInput" value="<?= htmlspecialchars($search ?? ''); ?>">
-                                            <button type="submit" class="btn btn-primary">Cari</button>
+                                        <div class="row g-2">
+                                            <div class="col-md-6">
+                                                <small class="text-muted d-block mb-2">Cari berdasarkan data</small>
+                                                <input type="text" name="search" class="form-control" placeholder="Cari..." id="searchInput" value="<?= htmlspecialchars($search ?? ''); ?>">
+                                            </div>
+                                            <div class="col-md-3">
+                                                <small class="text-muted d-block mb-2">Filter berdasarkan bulan</small>
+                                                <select name="bulan" class="form-select">
+                                                    <option value="">Pilih Bulan</option>
+                                                    <option value="1" <?= $bulan == 1 ? 'selected' : '' ?>>Januari</option>
+                                                    <option value="2" <?= $bulan == 2 ? 'selected' : '' ?>>Februari</option>
+                                                    <option value="3" <?= $bulan == 3 ? 'selected' : '' ?>>Maret</option>
+                                                    <option value="4" <?= $bulan == 4 ? 'selected' : '' ?>>April</option>
+                                                    <option value="5" <?= $bulan == 5 ? 'selected' : '' ?>>Mei</option>
+                                                    <option value="6" <?= $bulan == 6 ? 'selected' : '' ?>>Juni</option>
+                                                    <option value="7" <?= $bulan == 7 ? 'selected' : '' ?>>Juli</option>
+                                                    <option value="8" <?= $bulan == 8 ? 'selected' : '' ?>>Agustus</option>
+                                                    <option value="9" <?= $bulan == 9 ? 'selected' : '' ?>>September</option>
+                                                    <option value="10" <?= $bulan == 10 ? 'selected' : '' ?>>Oktober</option>
+                                                    <option value="11" <?= $bulan == 11 ? 'selected' : '' ?>>November</option>
+                                                    <option value="12" <?= $bulan == 12 ? 'selected' : '' ?>>Desember</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <small class="text-muted d-block mb-2">Filter berdasarkan tahun</small>
+                                                <input type="number" name="tahun" class="form-control" placeholder="Tahun" value="<?= htmlspecialchars($tahun ?? ''); ?>" min="2000">
+                                            </div>
+                                            <div class="col-md-12">
+                                                <button type="submit" class="btn btn-primary w-100">Cari</button>
+                                            </div>
                                         </div>
                                     </form>
                                 </div>
@@ -299,6 +371,7 @@ $keluar = ringkasanKasKeluar();
                                     <thead>
                                         <tr>
                                             <th scope="col">Tanggal</th>
+                                            <th scope="col">Kategori</th>
                                             <th scope="col">Jumlah</th>
                                             <!-- <th scope="col">Sisa Kas</th> -->
                                             <th scope="col">Aksi</th>
@@ -306,42 +379,50 @@ $keluar = ringkasanKasKeluar();
                                     </thead>
                                     <tbody>
                                         <?php
-                                        if ($search) {
-                                            $search_escaped = mysqli_real_escape_string($GLOBALS['db'], $search);
+                                        if ($hasKategoriColumn) {
                                             $kasKeluar = mysqli_query(
                                                 $db,
-                                                "SELECT id_transaksi, tanggal, jumlah
-                                                    FROM transaksi 
-                                                    WHERE jenis='keluar' 
-                                                    ORDER BY tanggal DESC"
+                                                "SELECT transaksi.id_transaksi, transaksi.tanggal, transaksi.jumlah, kategori.nama AS kategori
+                                                    FROM transaksi
+                                                    LEFT JOIN kategori ON transaksi.id_kategori = kategori.id_kategori
+                                                    WHERE $where
+                                                    ORDER BY transaksi.tanggal DESC"
                                             );
                                         } else {
                                             $kasKeluar = mysqli_query(
                                                 $db,
                                                 "SELECT id_transaksi, tanggal, jumlah
-                                                    FROM transaksi 
-                                                    WHERE jenis='keluar' 
+                                                    FROM transaksi
+                                                    WHERE $where
                                                     ORDER BY tanggal DESC"
                                             );
                                         }
-                                        while ($row = mysqli_fetch_assoc($kasKeluar)) :
-                                            ?>
-                                        <tr>
-                                            <td><?= $row['tanggal']; ?></td>
-                                            <td><?= number_format($row['jumlah'], 0, ',', '.'); ?></td>
-                                            <td>
-                                                <a href="?edit=<?= $row['id_transaksi']; ?>"
-                                                    class="btn btn-sm btn-warning">
-                                                    <i class="fa-solid fa-pen-to-square"></i>
-                                                </a>
-                                                <a href="?hapus=<?= $row['id_transaksi']; ?>"
-                                                    onclick="return confirm('Hapus data?')"
-                                                    class="btn btn-sm btn-danger">
-                                                    <i class="fa-solid fa-trash"></i>
-                                                </a>
-                                            </td>
-                                        </tr>
-                                    <?php endwhile; ?>
+                                        $jumlahData = mysqli_num_rows($kasKeluar);
+                                        if ($jumlahData == 0) {
+                                            echo '<tr><td colspan="3" class="text-center text-muted py-4">Tidak ada data</td></tr>';
+                                        } else {
+                                            while ($row = mysqli_fetch_assoc($kasKeluar)) :
+                                        ?>
+                                                <tr>
+                                                    <td><?= $row['tanggal']; ?></td>
+                                                    <td><?= $row['kategori'] ?? '-'; ?></td>
+                                                    <td><?= number_format($row['jumlah'], 0, ',', '.'); ?></td>
+                                                    <td>
+                                                        <a href="?edit=<?= $row['id_transaksi']; ?>"
+                                                            class="btn btn-sm btn-warning">
+                                                            <i class="fa-solid fa-pen-to-square"></i>
+                                                        </a>
+                                                        <a href="?hapus=<?= $row['id_transaksi']; ?>"
+                                                            onclick="return confirm('Hapus data?')"
+                                                            class="btn btn-sm btn-danger">
+                                                            <i class="fa-solid fa-trash"></i>
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                        <?php
+                                            endwhile;
+                                        }
+                                        ?>
                                     </tbody>
                                 </table>
                             </div>

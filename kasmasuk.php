@@ -1,13 +1,24 @@
     <?php include 'config/app.php';
     session_start();
 
-    // Ambil data murid
+    // Ambil data murid dan kategori
     $murid = query("SELECT * FROM murid");
+    $hasKategoriColumn = mysqli_num_rows(query("SHOW COLUMNS FROM transaksi LIKE 'id_kategori'")) > 0;
+    $kategori = $hasKategoriColumn ? query("SELECT * FROM kategori") : null;
 
     // Tambah data kas masuk
     if (isset($_POST['simpan'])) {
-        query("INSERT INTO transaksi (id_murid, tanggal, jenis, jumlah, keterangan) 
-            VALUES ('$_POST[id_murid]', '$_POST[tanggal]', 'masuk', '$_POST[jumlah]', 'Kas Masuk')");
+        $columns = 'id_murid, tanggal, jenis, jumlah, keterangan';
+        $values = "'$_POST[id_murid]', NOW(), 'masuk', '$_POST[jumlah]', 'Kas Masuk'";
+
+        if ($hasKategoriColumn) {
+            $kategoriValue = isset($_POST['id_kategori']) ? (int)$_POST['id_kategori'] : 0;
+            $columns .= ', id_kategori';
+            $values .= ", '$kategoriValue'";
+        }
+
+        query("INSERT INTO transaksi ($columns) VALUES ($values)");
+
         // agar data tidak ke-duplicate saat reload
         header("Location: kasmasuk.php?success=tambah");
         exit;
@@ -15,9 +26,15 @@
 
     // update
     if (isset($_POST['update'])) {
+        $kategori_update = '';
+        if ($hasKategoriColumn) {
+            $kategoriValue = isset($_POST['id_kategori']) ? (int)$_POST['id_kategori'] : 0;
+            $kategori_update = ", id_kategori = '$kategoriValue'";
+        }
+
         query("UPDATE transaksi SET
             tanggal = '$_POST[tanggal]',
-            jumlah  = '$_POST[jumlah]'
+            jumlah  = '$_POST[jumlah]'$kategori_update
             WHERE id_transaksi = '$_POST[id_transaksi]'
         ");
 
@@ -43,12 +60,23 @@
 
     // read
     $search = isset($_GET['search']) ? $_GET['search'] : '';
+    $bulan = isset($_GET['bulan']) ? $_GET['bulan'] : '';
+    $tahun = isset($_GET['tahun']) ? $_GET['tahun'] : '';
+
+    $where = "transaksi.jenis = 'masuk'";
     if ($search) {
         $search_escaped = mysqli_real_escape_string($GLOBALS['db'], $search);
-        $data = query("SELECT transaksi.*, murid.nama FROM transaksi JOIN murid ON transaksi.id_murid = murid.id_murid WHERE murid.nama LIKE '%$search_escaped%' AND transaksi.jenis = 'masuk' ORDER BY transaksi.tanggal DESC");
-    } else {
-        $data = query("SELECT transaksi.*, murid.nama FROM transaksi JOIN murid ON transaksi.id_murid = murid.id_murid WHERE transaksi.jenis = 'masuk' ORDER BY transaksi.tanggal DESC");
+        $where .= " AND murid.nama LIKE '%$search_escaped%'";
     }
+    if ($bulan && $tahun) {
+        $where .= " AND MONTH(transaksi.tanggal) = $bulan AND YEAR(transaksi.tanggal) = $tahun";
+    } elseif ($tahun) {
+        $where .= " AND YEAR(transaksi.tanggal) = $tahun";
+    } elseif ($bulan) {
+        $where .= " AND MONTH(transaksi.tanggal) = $bulan";
+    }
+
+    $data = query("SELECT transaksi.*, murid.nama FROM transaksi JOIN murid ON transaksi.id_murid = murid.id_murid WHERE $where ORDER BY transaksi.tanggal DESC");
 
     // ringkasan kas masuk
     $ringkasan = ringkasanKasMasuk();
@@ -279,8 +307,23 @@
                                         <!-- Tanggal -->
                                         <div class="mb-3">
                                             <label class="form-label">Tanggal</label>
-                                            <input type="date" name="tanggal" class="form-control" value="<?= $edit['tanggal'] ?? '' ?>" required>
+                                            <input type="date" name="tanggal" class="form-control" value="<?= $edit ? $edit['tanggal'] : date('Y-m-d') ?>" readonly>
                                         </div>
+                                        <?php if ($hasKategoriColumn): ?>
+                                            <!-- Kategori -->
+                                            <div class="mb-3">
+                                                <label class="form-label">Kategori</label>
+                                                <select name="id_kategori" class="form-control" required>
+                                                    <option value="">-- Pilih Kategori --</option>
+                                                    <?php while ($cat = mysqli_fetch_assoc($kategori)): ?>
+                                                        <option value="<?= $cat['id_kategori']; ?>" <?= isset($edit) && $edit && $edit['id_kategori'] == $cat['id_kategori'] ? 'selected' : ''; ?>>
+                                                            <?= htmlspecialchars($cat['nama']); ?>
+                                                        </option>
+                                                    <?php endwhile; ?>
+                                                </select>
+                                            </div>
+                                        <?php endif; ?>
+
                                         <!-- Jumlah -->
                                         <div class="mb-3">
                                             <label class="form-label">Jumlah</label>
@@ -310,9 +353,36 @@
                                     <hr>
                                     <div class="mb-6">
                                         <form method="GET" id="searchForm">
-                                            <div class="input-group">
-                                                <input type="text" name="search" class="form-control" placeholder="Cari nama siswa..." id="searchInput" value="<?= htmlspecialchars($search ?? ''); ?>">
-                                                <button type="submit" class="btn btn-primary">Cari</button>
+                                            <div class="row g-2">
+                                                <div class="col-md-6">
+                                                    <small class="text-muted d-block mb-2">Cari berdasarkan nama siswa</small>
+                                                    <input type="text" name="search" class="form-control" placeholder="Cari nama siswa..." id="searchInput" value="<?= htmlspecialchars($search ?? ''); ?>">
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <small class="text-muted d-block mb-2">Filter berdasarkan bulan</small>
+                                                    <select name="bulan" class="form-select">
+                                                        <option value="">Pilih Bulan</option>
+                                                        <option value="1" <?= $bulan == 1 ? 'selected' : '' ?>>Januari</option>
+                                                        <option value="2" <?= $bulan == 2 ? 'selected' : '' ?>>Februari</option>
+                                                        <option value="3" <?= $bulan == 3 ? 'selected' : '' ?>>Maret</option>
+                                                        <option value="4" <?= $bulan == 4 ? 'selected' : '' ?>>April</option>
+                                                        <option value="5" <?= $bulan == 5 ? 'selected' : '' ?>>Mei</option>
+                                                        <option value="6" <?= $bulan == 6 ? 'selected' : '' ?>>Juni</option>
+                                                        <option value="7" <?= $bulan == 7 ? 'selected' : '' ?>>Juli</option>
+                                                        <option value="8" <?= $bulan == 8 ? 'selected' : '' ?>>Agustus</option>
+                                                        <option value="9" <?= $bulan == 9 ? 'selected' : '' ?>>September</option>
+                                                        <option value="10" <?= $bulan == 10 ? 'selected' : '' ?>>Oktober</option>
+                                                        <option value="11" <?= $bulan == 11 ? 'selected' : '' ?>>November</option>
+                                                        <option value="12" <?= $bulan == 12 ? 'selected' : '' ?>>Desember</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <small class="text-muted d-block mb-2">Filter berdasarkan tahun</small>
+                                                    <input type="number" name="tahun" class="form-control" placeholder="Tahun" value="<?= htmlspecialchars($tahun ?? ''); ?>" min="2000">
+                                                </div>
+                                                <div class="col-md-12">
+                                                    <button type="submit" class="btn btn-primary w-100">Cari</button>
+                                                </div>
                                             </div>
                                         </form>
                                     </div>
@@ -329,25 +399,32 @@
 
                                         <tbody>
                                             <?php
-                                            while ($row = mysqli_fetch_assoc($data)) :
+                                            $jumlahData = mysqli_num_rows($data);
+                                            if ($jumlahData == 0) {
+                                                echo '<tr><td colspan="4" class="text-center text-muted py-4">Tidak ada data</td></tr>';
+                                            } else {
+                                                while ($row = mysqli_fetch_assoc($data)) :
                                             ?>
-                                                <tr>
-                                                    <td><?= $row['tanggal']; ?></td>
-                                                    <td><?= $row['nama']; ?></td>
-                                                    <td><?= number_format($row['jumlah'], 0, ',', '.'); ?></td>
-                                                    <td>
-                                                        <a href="?edit=<?= $row['id_transaksi']; ?>"
-                                                            class="btn btn-sm btn-warning">
-                                                            <i class="fa-solid fa-pen-to-square"></i>
-                                                        </a>
-                                                        <a href="?hapus=<?= $row['id_transaksi']; ?>"
-                                                            onclick="return confirm('Hapus data?')"
-                                                            class="btn btn-sm btn-danger">
-                                                            <i class="fa-solid fa-trash"></i>
-                                                        </a>
-                                                    </td>
-                                                </tr>
-                                            <?php endwhile; ?>
+                                                    <tr>
+                                                        <td><?= $row['tanggal']; ?></td>
+                                                        <td><?= $row['nama']; ?></td>
+                                                        <td><?= number_format($row['jumlah'], 0, ',', '.'); ?></td>
+                                                        <td>
+                                                            <a href="?edit=<?= $row['id_transaksi']; ?>"
+                                                                class="btn btn-sm btn-warning">
+                                                                <i class="fa-solid fa-pen-to-square"></i>
+                                                            </a>
+                                                            <a href="?hapus=<?= $row['id_transaksi']; ?>"
+                                                                onclick="return confirm('Hapus data?')"
+                                                                class="btn btn-sm btn-danger">
+                                                                <i class="fa-solid fa-trash"></i>
+                                                            </a>
+                                                        </td>
+                                                    </tr>
+                                            <?php
+                                                endwhile;
+                                            }
+                                            ?>
                                         </tbody>
                                     </table>
                                 </div>

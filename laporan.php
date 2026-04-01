@@ -4,6 +4,8 @@ include 'config/app.php';
 
 // Search logic
 $search = isset($_GET['search']) ? $_GET['search'] : '';
+$bulan = isset($_GET['bulan']) ? $_GET['bulan'] : '';
+$tahun = isset($_GET['tahun']) ? $_GET['tahun'] : '';
 
 // Ambil data ringkasan dari function di app.php
 $masuk = ringkasanKasMasuk();
@@ -131,7 +133,7 @@ $saldoAkhir = $keluar['saldo'];
                             <div class="card h-100">
                                 <div class="card-body border border-warning rounded d-flex flex-column justify-content-center shadow">
                                     <h6 class="text-muted mb-1">Saldo Akhir</h6>
-                                    <h5 class="fw-bold mb-0 <?= $saldoAkhir < 0 ? 'text-danger' : 'text-success' ?>">Rp <?= number_format($saldoAkhir, 0, ',', '.'); ?></h5>
+                                    <h5 class="fw-bold mb-0">Rp <?= number_format($saldoAkhir, 0, ',', '.'); ?></h5>
                                 </div>
                             </div>
                         </div>
@@ -167,19 +169,38 @@ $saldoAkhir = $keluar['saldo'];
                             <!-- cari -->
                             <div class="col">
                                 <form method="GET" id="searchForm">
-                                    <div class="input-group">
-                                        <input type="text" name="search" class="form-control" placeholder="Cari..." id="searchInput" value="<?= htmlspecialchars($search ?? ''); ?>">
-                                        <button type="submit" class="btn btn-primary">Cari</button>
+                                    <div class="row g-2">
+                                        <div class="col-md-6">
+                                            <small class="text-muted d-block mb-2">Cari berdasarkan data</small>
+                                            <input type="text" name="search" class="form-control" placeholder="Cari..." id="searchInput" value="<?= htmlspecialchars($search ?? ''); ?>">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <small class="text-muted d-block mb-2">Filter berdasarkan bulan</small>
+                                            <select name="bulan" class="form-select">
+                                                <option value="">Pilih Bulan</option>
+                                                <option value="1" <?= $bulan == 1 ? 'selected' : '' ?>>Januari</option>
+                                                <option value="2" <?= $bulan == 2 ? 'selected' : '' ?>>Februari</option>
+                                                <option value="3" <?= $bulan == 3 ? 'selected' : '' ?>>Maret</option>
+                                                <option value="4" <?= $bulan == 4 ? 'selected' : '' ?>>April</option>
+                                                <option value="5" <?= $bulan == 5 ? 'selected' : '' ?>>Mei</option>
+                                                <option value="6" <?= $bulan == 6 ? 'selected' : '' ?>>Juni</option>
+                                                <option value="7" <?= $bulan == 7 ? 'selected' : '' ?>>Juli</option>
+                                                <option value="8" <?= $bulan == 8 ? 'selected' : '' ?>>Agustus</option>
+                                                <option value="9" <?= $bulan == 9 ? 'selected' : '' ?>>September</option>
+                                                <option value="10" <?= $bulan == 10 ? 'selected' : '' ?>>Oktober</option>
+                                                <option value="11" <?= $bulan == 11 ? 'selected' : '' ?>>November</option>
+                                                <option value="12" <?= $bulan == 12 ? 'selected' : '' ?>>Desember</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <small class="text-muted d-block mb-2">Filter berdasarkan tahun</small>
+                                            <input type="number" name="tahun" class="form-control" placeholder="Tahun" value="<?= htmlspecialchars($tahun ?? ''); ?>" min="2000">
+                                        </div>
+                                        <div class="col-md-12">
+                                            <button type="submit" class="btn btn-primary w-100">Cari</button>
+                                        </div>
                                     </div>
                                 </form>
-                            </div>
-                            <div class="col-md-3">
-                                <select id="inputState" class="form-select">
-                                    <option selected>Jenis</option>
-                                    <!-- statis tar ganti yg dari database -->
-                                    <option>Januari</option>
-                                    <option>Februari</option>
-                                </select>
                             </div>
                         </div>
 
@@ -194,13 +215,21 @@ $saldoAkhir = $keluar['saldo'];
                             </thead>
                             <tbody>
                                 <?php
-                                if ($search) {
-                                    $search_escaped = mysqli_real_escape_string($db, $search);
-                                    $query = mysqli_query($db, "SELECT tanggal, jenis, jumlah FROM transaksi ORDER BY tanggal DESC");
-                                } else {
-                                    $query = mysqli_query($db, "SELECT tanggal, jenis, jumlah FROM transaksi ORDER BY tanggal DESC");
+                                $where = "1=1";
+                                if ($bulan && $tahun) {
+                                    $where .= " AND MONTH(tanggal) = $bulan AND YEAR(tanggal) = $tahun";
+                                } elseif ($tahun) {
+                                    $where .= " AND YEAR(tanggal) = $tahun";
+                                } elseif ($bulan) {
+                                    $where .= " AND MONTH(tanggal) = $bulan";
                                 }
-                                while ($row = mysqli_fetch_assoc($query)) {
+                                
+                                $query = mysqli_query($db, "SELECT tanggal, jenis, jumlah FROM transaksi WHERE $where ORDER BY tanggal DESC");
+                                $jumlahData = mysqli_num_rows($query);
+                                if ($jumlahData == 0) {
+                                    echo '<tr><td colspan="3" class="text-center text-muted py-4">Tidak ada data</td></tr>';
+                                } else {
+                                    while ($row = mysqli_fetch_assoc($query)) {
                                 ?>
                                     <tr>
                                         <td><?= $row['tanggal']; ?></td>
@@ -211,7 +240,10 @@ $saldoAkhir = $keluar['saldo'];
                                         </td>
                                         <td><?= number_format($row['jumlah']); ?></td>
                                     </tr>
-                                <?php } ?>
+                                <?php
+                                    }
+                                }
+                                ?>
                             </tbody>
                         </table>
                     </div>
