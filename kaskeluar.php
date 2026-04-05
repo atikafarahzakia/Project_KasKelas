@@ -1,94 +1,104 @@
-<?php include 'config/app.php';
+<?php
 session_start();
+include 'config/app.php';
 
+// CEK KOLOM KATEGORI
 $hasKategoriColumn = mysqli_num_rows(query("SHOW COLUMNS FROM transaksi LIKE 'id_kategori'")) > 0;
-$kategori = $hasKategoriColumn ? query("SELECT * FROM kategori") : null;
+$kategori = $hasKategoriColumn ? query("SELECT * FROM kategori") : [];
 
-// tambah
+// TAMBAH
 if (isset($_POST['simpan'])) {
-    if ($_POST['jumlah'] <= getSaldo()) {
-        $columns = 'tanggal, jenis, jumlah, keterangan';
-        $values = "NOW(), 'keluar', '$_POST[jumlah]', 'Kas Keluar'";
+    $jumlah = (int)$_POST['jumlah'];
 
-        if ($hasKategoriColumn) {
-            $kategoriValue = isset($_POST['id_kategori']) ? (int)$_POST['id_kategori'] : 0;
-            $columns .= ', id_kategori';
-            $values .= ", '$kategoriValue'";
+    if ($jumlah > 0 && $jumlah <= getSaldo()) {
+
+        $columns = "tanggal, jenis, jumlah, keterangan";
+        $values = "NOW(), 'keluar', '$jumlah', 'Kas Keluar'";
+
+        if ($hasKategoriColumn && !empty($_POST['id_kategori'])) {
+            $id_kategori = (int)$_POST['id_kategori'];
+            $columns .= ", id_kategori";
+            $values .= ", '$id_kategori'";
         }
 
         query("INSERT INTO transaksi ($columns) VALUES ($values)");
     }
 
-    // agar data tidak ke-duplicate saat reload
-    header("Location: kaskeluar.php?success=tambah");
+    header("Location: kaskeluar.php");
     exit;
 }
 
-// edit
+// UPDATE
 if (isset($_POST['update'])) {
-    $kategori_update = '';
-    if ($hasKategoriColumn) {
-        $kategoriValue = isset($_POST['id_kategori']) ? (int)$_POST['id_kategori'] : 0;
-        $kategori_update = ", id_kategori = '$kategoriValue'";
+    $id = (int)$_POST['id_transaksi'];
+    $jumlah = (int)$_POST['jumlah'];
+
+    if ($jumlah > 0) {
+
+        $sql = "UPDATE transaksi SET jumlah='$jumlah'";
+
+        if ($hasKategoriColumn && isset($_POST['id_kategori'])) {
+            $id_kategori = (int)$_POST['id_kategori'];
+            $sql .= ", id_kategori='$id_kategori'";
+        }
+
+        $sql .= " WHERE id_transaksi='$id'";
+        query($sql);
     }
 
-    query("UPDATE transaksi SET
-        tanggal = '$_POST[tanggal]',
-        jumlah  = '$_POST[jumlah]'$kategori_update
-        WHERE id_transaksi = '$_POST[id_transaksi]'
-        AND jenis='keluar'
-");
-
-    header("Location: kaskeluar.php?success=update");
+    header("Location: kaskeluar.php");
     exit;
 }
 
-// ambil data edit
-$edit = null;
-if (isset($_GET['edit'])) {
-    $edit = mysqli_fetch_assoc(
-        query("SELECT * FROM transaksi 
-               WHERE id_transaksi='$_GET[edit]' 
-               AND jenis='keluar'")
-    );
-}
-
-// delete
+// DELETE
 if (isset($_GET['hapus'])) {
-    query("DELETE FROM transaksi WHERE id_transaksi='$_GET[hapus]'");
-
-    header("Location: kaskeluar.php?success=delete");
+    $id = (int)$_GET['hapus'];
+    query("DELETE FROM transaksi WHERE id_transaksi='$id'");
+    header("Location: kaskeluar.php");
     exit;
 }
 
-// search logic
-$search = isset($_GET['search']) ? $_GET['search'] : '';
-$bulan = isset($_GET['bulan']) ? $_GET['bulan'] : '';
-$tahun = isset($_GET['tahun']) ? $_GET['tahun'] : '';
+// FILTER
+$search = $_GET['search'] ?? '';
+$bulan = $_GET['bulan'] ?? '';
+$tahun = $_GET['tahun'] ?? '';
 
-$hasKategoriColumn = mysqli_num_rows(query("SHOW COLUMNS FROM transaksi LIKE 'id_kategori'")) > 0;
+$where = "t.jenis='keluar'";
 
-// query data kaskeluar dengan filter
-$where = "transaksi.jenis='keluar'";
-if ($bulan && $tahun) {
-    $where .= " AND MONTH(transaksi.tanggal) = $bulan AND YEAR(transaksi.tanggal) = $tahun";
-} elseif ($tahun) {
-    $where .= " AND YEAR(transaksi.tanggal) = $tahun";
-} elseif ($bulan) {
-    $where .= " AND MONTH(transaksi.tanggal) = $bulan";
-}
+if ($bulan) $where .= " AND MONTH(t.tanggal)='$bulan'";
+if ($tahun) $where .= " AND YEAR(t.tanggal)='$tahun'";
 
 if ($search) {
-    $search_escaped = mysqli_real_escape_string($db, $search);
-    $where .= " AND (";
+    $s = mysqli_real_escape_string($db, $search);
 
     if ($hasKategoriColumn) {
-        $where .= "kategori.nama LIKE '%$search_escaped%' OR ";
+        $where .= " AND (
+            t.jumlah LIKE '%$s%' 
+            OR k.nama LIKE '%$s%'
+        )";
+    } else {
+        $where .= " AND t.jumlah LIKE '%$s%'";
     }
-
-    $where .= "transaksi.jumlah LIKE '%$search_escaped%' OR transaksi.keterangan LIKE '%$search_escaped%')";
 }
 
+// DATA (FIX JOIN KATEGORI)
+if ($hasKategoriColumn) {
+    $kasKeluar = mysqli_query($db, "
+        SELECT t.*, k.nama as kategori 
+        FROM transaksi t
+        LEFT JOIN kategori k ON t.id_kategori = k.id_kategori
+        WHERE $where 
+        ORDER BY t.tanggal DESC
+    ");
+} else {
+    $kasKeluar = mysqli_query($db, "
+        SELECT * FROM transaksi 
+        WHERE jenis='keluar'
+        ORDER BY tanggal DESC
+    ");
+}
+
+// RINGKASAN
 $keluar = ringkasanKasKeluar();
 ?>
 
@@ -96,384 +106,302 @@ $keluar = ringkasanKasKeluar();
 <html lang="en">
 
 <head>
+    <meta charset="utf-8">
     <title>Kas Keluar</title>
-    <!-- Required meta tags -->
-    <meta charset="utf-8" />
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1, shrink-to-fit=no" />
 
-    <!-- Bootstrap CSS v5.2.1 -->
-    <link
-        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
-        rel="stylesheet"
-        integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN"
-        crossorigin="anonymous" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="style/style.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+    <style>
+        body {
+            background: #f5f7fb;
+        }
+
+        .card {
+            border-radius: 12px;
+        }
+
+        /* SIDEBAR SAMA */
+        .sidebar {
+            width: 250px;
+            min-height: 100vh;
+            background: linear-gradient(180deg, #0d6efd, #0b5ed7);
+            color: white;
+            position: sticky;
+            top: 0;
+        }
+
+        .sidebar .nav-link {
+            color: rgba(255, 255, 255, 0.85);
+            padding: 12px 15px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: 0.3s;
+        }
+
+        .sidebar .nav-link:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateX(5px);
+        }
+
+        .sidebar .nav-link.active {
+            background: white;
+            color: #0d6efd !important;
+        }
+
+        .sidebar .profile img {
+            width: 65px;
+            height: 65px;
+            border-radius: 50%;
+            border: 3px solid white;
+            object-fit: cover;
+        }
+    </style>
 </head>
 
 <body>
-    <!-- sidebar -->
-    <div class="d-flex min-vh-100">
+
+    <div class="d-flex">
 
         <!-- SIDEBAR -->
-        <div class="collapse show bg-dark text-white shadow" id="sidebar">
-            <div class="p-3">
-                <h4 class="text-center">Kas Kelas</h4>
-                <hr>
-                <!-- profile -->
-                <div class="d-flex align-items-center px-2 mb-2">
-                    <img src="assets/piploy.jpg"
-                        class="rounded-circle me-2"
-                        style="width:45px;height:45px;object-fit:cover;">
-                    <p class="fs-5 mb-0"><?= $_SESSION['role']; ?></p>
-                </div>
-                <hr>
-                <!-- menu -->
-                <ul class="nav nav-pills flex-column gap-2">
-                    <li class="nav-item">
-                        <a class="nav-link" href="dashboard.php">Dashboard</a>
-                    </li>
-                    <li class="nav-item mt-4">
-                        <small class="ms-3">Menu Utama</small>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="datamurid.php">Data Murid</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="kasmasuk.php">Kas Masuk</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link active" href="kaskeluar.php">Kas Keluar</a>
-                    </li>
-                    <li class="nav-item mt-4">
-                        <small class="ms-3">Laporan</small>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="aruskas.php">Arus Kas</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="statusbayar.php">Status Bayar</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="laporan.php">Laporan</a>
-                    </li>
-                    <hr>
-                    <li class="nav-item">
-                        <small class="ms-3">Logout</small>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link text-danger" href="logout.php">Log Out</a>
-                    </li>
-                </ul>
+        <div class="sidebar p-3">
+            <h4 class="text-center mb-3">Kas Kelas</h4>
+            <hr>
+
+            <div class="profile text-center mb-3">
+                <img src="assets/piploy.jpg">
+                <p><?= htmlspecialchars($_SESSION['role']) ?></p>
             </div>
+
+            <hr>
+
+            <ul class="nav flex-column gap-2">
+                <li><a class="nav-link" href="dashboard.php"><i class="fas fa-home"></i> Dashboard</a></li>
+
+                <?php if ($_SESSION['role'] == 'bendahara'): ?>
+                    <li><a class="nav-link" href="datamurid.php"><i class="fas fa-users"></i> Data Murid</a></li>
+                    <li><a class="nav-link" href="kasmasuk.php"><i class="fas fa-arrow-down"></i> Kas Masuk</a></li>
+                    <li><a class="nav-link active" href="kaskeluar.php"><i class="fas fa-arrow-up"></i> Kas Keluar</a></li>
+                <?php endif; ?>
+
+                <li><a class="nav-link" href="aruskas.php"><i class="fas fa-chart-bar"></i> Arus Kas</a></li>
+                <li><a class="nav-link" href="statusbayar.php"><i class="fas fa-chart-bar"></i> Status Bayar</a></li>
+                <li><a class="nav-link" href="laporan.php"><i class="fas fa-file"></i> Laporan</a></li>
+
+                <hr>
+                <li><a class="nav-link text-danger" href="logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+            </ul>
         </div>
 
         <!-- CONTENT -->
-        <div class="flex-fill d-flex flex-column">
+        <div class="flex-fill p-4">
 
-            <!-- TOP NAV -->
-            <nav class="navbar navbar-dark bg-dark">
-                <div class="container-fluid">
-                    <button class="navbar-toggler"
-                        type="button"
-                        data-bs-toggle="collapse"
-                        data-bs-target="#sidebar">
-                        <span class="navbar-toggler-icon"></span>
-                    </button>
-                    <span class="navbar-brand ms-2">SMK NEGERI 7 SAMARINDA</span>
-                </div>
-            </nav>
+            <h4 class="mb-4">Kas Keluar</h4>
 
-            <!-- main -->
-            <div class="p-4">
-                <?php if (isset($_GET['success'])): ?>
-                    <div class="alert alert-success alert-dismissible fade show" role="alert" id="successAlert">
-                        <?php
-                        if ($_GET['success'] == 'tambah') echo 'Kas masuk berhasil ditambahkan!';
-                        if ($_GET['success'] == 'update') echo 'Data murid berhasil diupdate!';
-                        if ($_GET['success'] == 'delete') echo 'Data murid berhasil dihapus!';
-                        ?>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                    <script>
-                        // Auto dismiss alert setelah 3 detik
-                        setTimeout(() => {
-                            const alert = document.getElementById('successAlert');
-                            if (alert) {
-                                const bsAlert = new bootstrap.Alert(alert);
-                                bsAlert.close();
-                            }
-                        }, 3000);
-                    </script>
-                <?php endif; ?>
-                <!-- ringkasan -->
-                <h3 class="mb-4">Ringkasan</h3>
-                <div class="row g-3">
-                    <!-- Kas keluar -->
-                    <div class="col-12 col-md-6">
-                        <div class="card shadow-sm h-100">
-                            <div class="card-body py-3 px-3 d-flex align-items-center gap-3">
-                                <div class="fs-3 text-danger">
-                                    <i class="fa-solid fa-arrow-trend-down"></i>
-                                </div>
-                                <div>
-                                    <h6 class="text-muted mb-1">Kas Keluar</h6>
-                                    <h5 class="fw-bold mb-0">Rp <?= number_format($keluar['totalKeluar'], 0, ',', '.'); ?></h5>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Belum Dibayar -->
-                    <div class="col-12 col-md-6">
-                        <div class="card shadow-sm h-100">
-                            <div class="card-body py-3 px-3 d-flex align-items-center gap-3">
-                                <div class="fs-3 text-secondary">
-                                    <i class="fa-solid fa-chart-area"></i>
-                                </div>
-                                <div>
-                                    <h6 class="text-muted mb-1">Kas Keluar Bulan Ini</h6>
-                                    <h5 class="fw-bold mb-0">Rp <?= number_format($keluar['keluarBulanIni'], 0, ',', '.'); ?></h5>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Jumlah Bayar -->
-                    <div class="col-12 col-md-6">
-                        <div class="card shadow-sm h-100">
-                            <div class="card-body py-3 px-3 d-flex align-items-center gap-3">
-                                <div class="fs-3 text-info">
-                                    <i class="fa-solid fa-arrow-down-wide-short"></i>
-                                </div>
-                                <div>
-                                    <h6 class="text-muted mb-1">Jumlah transaksi</h6>
-                                    <h5 class="fw-bold mb-0"><?= $keluar['jumlahTransaksi']; ?> Transaksi</h5>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Pembayaran Terakhir -->
-                    <div class="col-12 col-md-6">
-                        <div class="card shadow-sm h-100">
-                            <div class="card-body py-3 px-3 d-flex align-items-center gap-3">
-                                <div class="fs-3 text-warning">
-                                    <i class="fa-solid fa-sack-dollar"></i>
-                                </div>
-                                <div>
-                                    <h6 class="text-muted mb-1">Sisa Saldo</h6>
-                                    <h5 class="fw-bold mb-0">Rp <?= number_format($keluar['saldo'], 0, ',', '.'); ?></h5>
-                                </div>
-                            </div>
-                        </div>
+            <!-- RINGKASAN -->
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <div class="card p-3">
+                        <h6>Total Kas Keluar</h6>
+                        <h4 class="text-danger">Rp <?= number_format($keluar['totalKeluar']) ?></h4>
                     </div>
                 </div>
 
-
-                <!-- modal tambah kas -->
-                <div class="d-grid gap-2 mt-4">
-                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalTambahKas">Tambah Kas Keluar</button>
-                </div>
-                <!-- Modal -->
-                <div class="modal fade" id="modalTambahKas" tabindex="-1" aria-labelledby="modalTambahKasLabel" aria-hidden="true">
-                    <div class="modal-dialog modal-md modal-dialog-centered">
-                        <div class="modal-content">
-                            <!-- Header -->
-                            <div class="modal-header">
-                                <h5 class="modal-title" id="modalTambahKasLabel">Tambah Kas Keluar</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                            </div>
-                            <!-- Body -->
-                            <form action="" method="POST">
-                                <input type="hidden" name="id_transaksi" value="<?= $edit['id_transaksi'] ?? '' ?>">
-                                <div class="modal-body">
-                                    <!-- Tanggal -->
-                                    <div class="mb-3">
-                                        <label class="form-label">Tanggal</label>
-                                        <input type="date"
-                                            name="tanggal"
-                                            class="form-control"
-                                            value="<?= $edit ? $edit['tanggal'] : date('Y-m-d') ?>"
-                                            readonly>
-                                    </div>
-                                    <?php if ($hasKategoriColumn): ?>
-                                        <!-- Kategori -->
-                                        <div class="mb-3">
-                                            <label class="form-label">Kategori</label>
-                                            <select name="id_kategori" class="form-control" required>
-                                                <option value="">-- Pilih Kategori --</option>
-                                                <?php while ($cat = mysqli_fetch_assoc($kategori)): ?>
-                                                    <option value="<?= $cat['id_kategori']; ?>" <?= isset($edit) && $edit && $edit['id_kategori'] == $cat['id_kategori'] ? 'selected' : ''; ?>>
-                                                        <?= htmlspecialchars($cat['nama']); ?>
-                                                    </option>
-                                                <?php endwhile; ?>
-                                            </select>
-                                        </div>
-                                    <?php endif; ?>
-
-                                    <!-- Jumlah -->
-                                    <div class="mb-3">
-                                        <label class="form-label">Jumlah Uang</label>
-                                        <input type="number" name="jumlah" class="form-control" placeholder="Contoh: 10000" value="<?= $edit['jumlah'] ?? '' ?>" required>
-                                    </div>
-                                </div>
-                                <!-- Footer -->
-                                <div class="modal-footer">
-                                    <button type="submit"
-                                        name="<?= $edit ? 'update' : 'simpan' ?>"
-                                        class="btn <?= $edit ? 'btn-warning' : 'btn-success' ?>">
-                                        <?= $edit ? 'Update' : 'Simpan' ?>
-                                    </button>
-
-                                </div>
-                            </form>
-
-                        </div>
+                <div class="col-md-6">
+                    <div class="card p-3">
+                        <h6>Saldo</h6>
+                        <h4 class="text-success">Rp <?= number_format($keluar['saldo']) ?></h4>
                     </div>
                 </div>
-
-                <!--  -->
-                <form action="">
-                    <div class="mt-3">
-
-                        <div class="card mt-3">
-                            <div class="card-body">
-                                <h5>Daftar Kas Keluar</h5>
-                                <hr>
-                                <div class="mb-6">
-                                    <form method="GET" id="searchForm">
-                                        <div class="row g-2">
-                                            <div class="col-md-6">
-                                                <small class="text-muted d-block mb-2">Cari berdasarkan data</small>
-                                                <input type="text" name="search" class="form-control" placeholder="Cari..." id="searchInput" value="<?= htmlspecialchars($search ?? ''); ?>">
-                                            </div>
-                                            <div class="col-md-3">
-                                                <small class="text-muted d-block mb-2">Filter berdasarkan bulan</small>
-                                                <select name="bulan" class="form-select">
-                                                    <option value="">Pilih Bulan</option>
-                                                    <option value="1" <?= $bulan == 1 ? 'selected' : '' ?>>Januari</option>
-                                                    <option value="2" <?= $bulan == 2 ? 'selected' : '' ?>>Februari</option>
-                                                    <option value="3" <?= $bulan == 3 ? 'selected' : '' ?>>Maret</option>
-                                                    <option value="4" <?= $bulan == 4 ? 'selected' : '' ?>>April</option>
-                                                    <option value="5" <?= $bulan == 5 ? 'selected' : '' ?>>Mei</option>
-                                                    <option value="6" <?= $bulan == 6 ? 'selected' : '' ?>>Juni</option>
-                                                    <option value="7" <?= $bulan == 7 ? 'selected' : '' ?>>Juli</option>
-                                                    <option value="8" <?= $bulan == 8 ? 'selected' : '' ?>>Agustus</option>
-                                                    <option value="9" <?= $bulan == 9 ? 'selected' : '' ?>>September</option>
-                                                    <option value="10" <?= $bulan == 10 ? 'selected' : '' ?>>Oktober</option>
-                                                    <option value="11" <?= $bulan == 11 ? 'selected' : '' ?>>November</option>
-                                                    <option value="12" <?= $bulan == 12 ? 'selected' : '' ?>>Desember</option>
-                                                </select>
-                                            </div>
-                                            <div class="col-md-3">
-                                                <small class="text-muted d-block mb-2">Filter berdasarkan tahun</small>
-                                                <input type="number" name="tahun" class="form-control" placeholder="Tahun" value="<?= htmlspecialchars($tahun ?? ''); ?>" min="2000">
-                                            </div>
-                                            <div class="col-md-12">
-                                                <button type="submit" class="btn btn-primary w-100">Cari</button>
-                                            </div>
-                                        </div>
-                                    </form>
-                                </div>
-                                <!-- tabel -->
-                                <table class="table table-hover table-striped border mt-3">
-                                    <thead>
-                                        <tr>
-                                            <th scope="col">Tanggal</th>
-                                            <th scope="col">Kategori</th>
-                                            <th scope="col">Jumlah</th>
-                                            <!-- <th scope="col">Sisa Kas</th> -->
-                                            <th scope="col">Aksi</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <?php
-                                        if ($hasKategoriColumn) {
-                                            $kasKeluar = mysqli_query(
-                                                $db,
-                                                "SELECT transaksi.id_transaksi, transaksi.tanggal, transaksi.jumlah, kategori.nama AS kategori
-                                                    FROM transaksi
-                                                    LEFT JOIN kategori ON transaksi.id_kategori = kategori.id_kategori
-                                                    WHERE $where
-                                                    ORDER BY transaksi.tanggal DESC"
-                                            );
-                                        } else {
-                                            $kasKeluar = mysqli_query(
-                                                $db,
-                                                "SELECT id_transaksi, tanggal, jumlah
-                                                    FROM transaksi
-                                                    WHERE $where
-                                                    ORDER BY tanggal DESC"
-                                            );
-                                        }
-                                        $jumlahData = mysqli_num_rows($kasKeluar);
-                                        if ($jumlahData == 0) {
-                                            echo '<tr><td colspan="3" class="text-center text-muted py-4">Tidak ada data</td></tr>';
-                                        } else {
-                                            while ($row = mysqli_fetch_assoc($kasKeluar)) :
-                                        ?>
-                                                <tr>
-                                                    <td><?= $row['tanggal']; ?></td>
-                                                    <td><?= $row['kategori'] ?? '-'; ?></td>
-                                                    <td><?= number_format($row['jumlah'], 0, ',', '.'); ?></td>
-                                                    <td>
-                                                        <a href="?edit=<?= $row['id_transaksi']; ?>"
-                                                            class="btn btn-sm btn-warning">
-                                                            <i class="fa-solid fa-pen-to-square"></i>
-                                                        </a>
-                                                        <a href="?hapus=<?= $row['id_transaksi']; ?>"
-                                                            onclick="return confirm('Hapus data?')"
-                                                            class="btn btn-sm btn-danger">
-                                                            <i class="fa-solid fa-trash"></i>
-                                                        </a>
-                                                    </td>
-                                                </tr>
-                                        <?php
-                                            endwhile;
-                                        }
-                                        ?>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </form>
             </div>
-            <footer class="border-top py-2 text-center text-muted small mt-5">
-                © Kas Kelas Atika
-            </footer>
+
+            <!-- BUTTON -->
+            <button class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#modalTambahKas">
+                Tambah Kas Keluar
+            </button>
+
+            <!-- FILTER -->
+            <form method="GET" class="row g-2 mb-2 mt-3">
+
+                <!-- SEARCH -->
+                <div class="col-md-4">
+                    <input type="text"
+                        name="search"
+                        class="form-control"
+                        placeholder="Cari jumlah / keterangan..."
+                        value="<?= htmlspecialchars($search) ?>">
+                </div>
+
+                <!-- BULAN -->
+                <div class="col-md-3">
+                    <select name="bulan" class="form-control">
+                        <option value="">-- Pilih Bulan --</option>
+                        <?php for ($i = 1; $i <= 12; $i++): ?>
+                            <option value="<?= $i ?>" <?= ($bulan == $i) ? 'selected' : '' ?>>
+                                <?= date('F', mktime(0, 0, 0, $i, 1)) ?>
+                            </option>
+                        <?php endfor; ?>
+                    </select>
+                </div>
+
+                <!-- TAHUN -->
+                <div class="col-md-3">
+                    <select name="tahun" class="form-control">
+                        <option value="">-- Pilih Tahun --</option>
+                        <?php
+                        $currentYear = date('Y');
+                        for ($i = $currentYear; $i >= $currentYear - 5; $i--): ?>
+                            <option value="<?= $i ?>" <?= ($tahun == $i) ? 'selected' : '' ?>>
+                                <?= $i ?>
+                            </option>
+                        <?php endfor; ?>
+                    </select>
+                </div>
+
+                <!-- BUTTON -->
+                <div class="col-md-2 d-grid">
+                    <button class="btn btn-primary">Filter</button>
+                </div>
+            </form>
+
+            <!-- TABEL -->
+            <div class="card">
+                <div class="card-body">
+
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Tanggal</th>
+                                <th>Jumlah</th>
+                                <th>Kategori</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <?php while ($row = mysqli_fetch_assoc($kasKeluar)): ?>
+                            <tr>
+                                <td><?= htmlspecialchars($row['tanggal']) ?></td>
+                                <td>Rp <?= number_format($row['jumlah']) ?></td>
+                                <td><?= htmlspecialchars($row['kategori'] ?? '-') ?></td>
+                                <td>
+                                    <button class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#edit<?= $row['id_transaksi'] ?>">
+                                        Edit
+                                    </button>
+                                    <a href="?hapus=<?= $row['id_transaksi'] ?>"
+                                        class="btn btn-danger btn-sm"
+                                        onclick="return confirm('Yakin ingin menghapus data ini?')">
+                                        Hapus
+                                    </a>
+                                </td>
+                            </tr>
+                        <?php endwhile; ?>
+                    </table>
+                    </table>
+                </div>
+            </div>
+
         </div>
     </div>
+
+    <!-- MODAL TAMBAH -->
+    <div class="modal fade" id="modalTambahKas">
+        <div class="modal-dialog modal-md modal-dialog-centered">
+            <div class="modal-content">
+
+                <div class="modal-header">
+                    <h5 class="modal-title">Tambah Kas Keluar</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <form method="POST">
+                    <div class="modal-body">
+
+                        <div class="mb-3">
+                            <label class="form-label">Tanggal</label>
+                            <input type="date" class="form-control" value="<?= date('Y-m-d') ?>" readonly>
+                        </div>
+
+                        <?php if ($hasKategoriColumn): ?>
+                            <div class="mb-3">
+                                <label class="form-label">Kategori</label>
+                                <select name="id_kategori" class="form-control" required>
+                                    <option value="">-- Pilih Kategori --</option>
+                                    <?php foreach ($kategori as $cat): ?>
+                                        <option value="<?= $cat['id_kategori']; ?>">
+                                            <?= htmlspecialchars($cat['nama']); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                        <?php endif; ?>
+
+                        <div class="mb-3">
+                            <label class="form-label">Jumlah</label>
+                            <input type="number" name="jumlah" class="form-control" required>
+                        </div>
+
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="submit" name="simpan" class="btn btn-success">Simpan</button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
     </div>
-    <script
-        src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"
-        integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r"
-        crossorigin="anonymous"></script>
 
-    <script
-        src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.min.js"
-        integrity="sha384-BBtl+eGJRgqQAUMxJ7pMwbEyER4l1g+O15P+16Ep7Q9Q+zqX6gSbd85u4mG4QzX+"
-        crossorigin="anonymous"></script>
-    <script>
-        // Buka modal otomatis jika ada data edit
-        <?php if ($edit): ?>
-            const modalTambahKas = new bootstrap.Modal(document.getElementById('modalTambahKas'));
-            modalTambahKas.show();
-        <?php endif; ?>
+    <?php mysqli_data_seek($kasKeluar, 0); // ulang loop 
+    ?>
+    <?php while ($row = mysqli_fetch_assoc($kasKeluar)): ?>
 
-        // Auto-reset search ketika input kosong
-        const searchInput = document.getElementById('searchInput');
-        if (searchInput) {
-            searchInput.addEventListener('input', function() {
-                if (this.value === '') {
-                    window.location.href = 'kaskeluar.php';
-                }
-            });
-        }
-    </script>
+        <div class="modal fade" id="edit<?= $row['id_transaksi'] ?>">
+            <div class="modal-dialog modal-dialog-centered">
+                <form method="POST" class="modal-content">
+
+                    <input type="hidden" name="id_transaksi" value="<?= $row['id_transaksi'] ?>">
+
+                    <div class="modal-header">
+                        <h5 class="modal-title">Edit Kas Keluar</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+
+                    <div class="modal-body">
+
+                        <?php if ($hasKategoriColumn): ?>
+                            <div class="mb-3">
+                                <label>Kategori</label>
+                                <select name="id_kategori" class="form-control">
+                                    <?php foreach ($kategori as $cat): ?>
+                                        <option value="<?= $cat['id_kategori'] ?>"
+                                            <?= $row['id_kategori'] == $cat['id_kategori'] ? 'selected' : '' ?>>
+                                            <?= htmlspecialchars($cat['nama']) ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                        <?php endif; ?>
+
+                        <div class="mb-3">
+                            <label>Jumlah</label>
+                            <input type="number" name="jumlah" value="<?= $row['jumlah'] ?>" class="form-control">
+                        </div>
+
+                    </div>
+
+                    <div class="modal-footer">
+                        <button name="update" class="btn btn-warning">Update</button>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+
+    <?php endwhile; ?>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
 </body>
 
 </html>
