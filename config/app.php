@@ -74,46 +74,19 @@ function ringkasanKasMasuk()
 {
     global $db;
 
-    $bulanIni = date('m');
-    $tahunIni = date('Y');
+    // total kas masuk
+    $masuk = mysqli_fetch_assoc(mysqli_query($db, "
+        SELECT SUM(jumlah) as total FROM transaksi WHERE jenis='masuk'
+    "));
 
-    // Total kas masuk
-    $totalKasMasuk = mysqli_fetch_assoc(
-        mysqli_query($db, "SELECT SUM(jumlah) as total 
-                           FROM transaksi 
-                           WHERE jenis='masuk'")
-    )['total'] ?? 0;
-
-    // Kas masuk bulan ini
-    $kasBulanIni = mysqli_fetch_assoc(
-        mysqli_query($db, "SELECT SUM(jumlah) as total 
-                           FROM transaksi 
-                           WHERE jenis='masuk' 
-                           AND MONTH(tanggal)='$bulanIni' 
-                           AND YEAR(tanggal)='$tahunIni'")
-    )['total'] ?? 0;
-
-    // Murid sudah bayar bulan ini
-    $sudahBayar = mysqli_fetch_assoc(
-        mysqli_query($db, "SELECT COUNT(DISTINCT id_murid) as total 
-                           FROM transaksi 
-                           WHERE jenis='masuk' 
-                           AND MONTH(tanggal)='$bulanIni' 
-                           AND YEAR(tanggal)='$tahunIni'")
-    )['total'] ?? 0;
-
-    // Total murid
-    $totalMurid = mysqli_fetch_assoc(
-        mysqli_query($db, "SELECT COUNT(*) as total FROM murid")
-    )['total'] ?? 0;
-
-    $belumBayar = $totalMurid - $sudahBayar;
+    // total kas keluar
+    $keluar = mysqli_fetch_assoc(mysqli_query($db, "
+        SELECT SUM(jumlah) as total FROM transaksi WHERE jenis='keluar'
+    "));
 
     return [
-        'totalKasMasuk' => $totalKasMasuk ?? 0,
-        'kasBulanIni'   => $kasBulanIni ?? 0,
-        'sudahBayar'    => $sudahBayar ?? 0,
-        'belumBayar'    => $belumBayar ?? 0
+        'totalKasMasuk' => $masuk['total'] ?? 0,
+        'saldo' => ($masuk['total'] ?? 0) - ($keluar['total'] ?? 0)
     ];
 }
 

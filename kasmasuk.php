@@ -1,470 +1,379 @@
-    <?php include 'config/app.php';
-    session_start();
+<?php include 'config/app.php';
+session_start();
 
-    // Ambil data murid dan kategori
-    $murid = query("SELECT * FROM murid");
-    $hasKategoriColumn = mysqli_num_rows(query("SHOW COLUMNS FROM transaksi LIKE 'id_kategori'")) > 0;
-    $kategori = $hasKategoriColumn ? query("SELECT * FROM kategori") : null;
+// Ambil data murid dan kategori
+$murid = query("SELECT * FROM murid");
+$hasKategoriColumn = mysqli_num_rows(query("SHOW COLUMNS FROM transaksi LIKE 'id_kategori'")) > 0;
+$kategori = $hasKategoriColumn ? query("SELECT * FROM kategori") : null;
 
-    // Tambah data kas masuk
-    if (isset($_POST['simpan'])) {
-        $columns = 'id_murid, tanggal, jenis, jumlah, keterangan';
-        $values = "'$_POST[id_murid]', NOW(), 'masuk', '$_POST[jumlah]', 'Kas Masuk'";
+// ================= TAMBAH =================
+if (isset($_POST['simpan'])) {
 
-        if ($hasKategoriColumn) {
-            $kategoriValue = isset($_POST['id_kategori']) ? (int)$_POST['id_kategori'] : 0;
-            $columns .= ', id_kategori';
-            $values .= ", '$kategoriValue'";
+    $id_murid = (int)$_POST['id_murid'];
+    $jumlah   = (int)$_POST['jumlah'];
+
+    $columns = 'id_murid, tanggal, jenis, jumlah, keterangan';
+    $values  = "'$id_murid', NOW(), 'masuk', '$jumlah', 'Kas Masuk'";
+
+    if ($hasKategoriColumn) {
+        $kategoriValue = !empty($_POST['id_kategori']) ? (int)$_POST['id_kategori'] : NULL;
+        $columns .= ', id_kategori';
+        $values  .= is_null($kategoriValue) ? ", NULL" : ", '$kategoriValue'";
+    }
+
+    query("INSERT INTO transaksi ($columns) VALUES ($values)");
+
+    header("Location: kasmasuk.php?success=tambah");
+    exit;
+}
+
+// ================= UPDATE =================
+if (isset($_POST['update'])) {
+
+    $id        = (int)$_POST['id_transaksi'];
+    $id_murid  = (int)$_POST['id_murid'];
+    $tgl       = $_POST['tanggal'];
+    $jml       = (int)$_POST['jumlah'];
+
+    $kategori_update = '';
+    if ($hasKategoriColumn) {
+        $kategoriValue = !empty($_POST['id_kategori']) ? (int)$_POST['id_kategori'] : NULL;
+        $kategori_update = is_null($kategoriValue)
+            ? ", id_kategori = NULL"
+            : ", id_kategori = '$kategoriValue'";
+    }
+
+    query("UPDATE transaksi SET
+        id_murid = '$id_murid',
+        tanggal = '$tgl',
+        jumlah  = '$jml'
+        $kategori_update
+        WHERE id_transaksi = '$id'
+    ");
+
+    header("Location: kasmasuk.php?success=update");
+    exit;
+}
+
+// ================= DELETE =================
+if (isset($_GET['hapus'])) {
+    $id = (int)$_GET['hapus'];
+    query("DELETE FROM transaksi WHERE id_transaksi='$id'");
+    header("Location: kasmasuk.php?success=delete");
+    exit;
+}
+
+// ================= FILTER =================
+$search = isset($_GET['search']) ? $_GET['search'] : '';
+$bulan  = isset($_GET['bulan']) ? $_GET['bulan'] : '';
+$tahun  = isset($_GET['tahun']) ? $_GET['tahun'] : '';
+
+$where = "transaksi.jenis = 'masuk'";
+
+if ($search) {
+    $search = mysqli_real_escape_string($GLOBALS['db'], $search);
+    $where .= " AND murid.nama LIKE '%$search%'";
+}
+
+if ($bulan && $tahun) {
+    $where .= " AND MONTH(transaksi.tanggal) = $bulan AND YEAR(transaksi.tanggal) = $tahun";
+} elseif ($tahun) {
+    $where .= " AND YEAR(transaksi.tanggal) = $tahun";
+} elseif ($bulan) {
+    $where .= " AND MONTH(transaksi.tanggal) = $bulan";
+}
+
+// ================= DATA =================
+$data = query("SELECT transaksi.*, murid.nama 
+    FROM transaksi 
+    JOIN murid ON transaksi.id_murid = murid.id_murid 
+    WHERE $where 
+    ORDER BY transaksi.tanggal DESC");
+
+// ================= RINGKASAN =================
+$ringkasan = ringkasanKasMasuk();
+?>
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>Kas Masuk</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+    <style>
+        body {
+            background: #f5f7fb;
         }
 
-        query("INSERT INTO transaksi ($columns) VALUES ($values)");
-
-        // agar data tidak ke-duplicate saat reload
-        header("Location: kasmasuk.php?success=tambah");
-        exit;
-    }
-
-    // update
-    if (isset($_POST['update'])) {
-        $kategori_update = '';
-        if ($hasKategoriColumn) {
-            $kategoriValue = isset($_POST['id_kategori']) ? (int)$_POST['id_kategori'] : 0;
-            $kategori_update = ", id_kategori = '$kategoriValue'";
+        .card {
+            border-radius: 12px;
         }
 
-        query("UPDATE transaksi SET
-            tanggal = '$_POST[tanggal]',
-            jumlah  = '$_POST[jumlah]'$kategori_update
-            WHERE id_transaksi = '$_POST[id_transaksi]'
-        ");
+        /* SIDEBAR ASLI (TIDAK DIUBAH) */
+        .sidebar {
+            width: 250px;
+            min-height: 100vh;
+            background: linear-gradient(180deg, #0d6efd, #0b5ed7);
+            color: white;
+            position: sticky;
+            top: 0;
+        }
 
-        header("Location: kasmasuk.php?success=update");
-        exit;
-    }
+        .sidebar .nav-link {
+            color: rgba(255, 255, 255, 0.85);
+            padding: 12px 15px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: 0.3s;
+        }
 
-    // ambil data edit
-    $edit = null;
-    if (isset($_GET['edit'])) {
-        $edit = mysqli_fetch_assoc(
-            query("SELECT * FROM transaksi WHERE id_transaksi='$_GET[edit]'")
-        );
-    }
+        .sidebar .nav-link:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateX(5px);
+        }
 
-    // delete
-    if (isset($_GET['hapus'])) {
-        query("DELETE FROM transaksi WHERE id_transaksi='$_GET[hapus]'");
+        .sidebar .nav-link.active {
+            background: white;
+            color: #0d6efd !important;
+        }
 
-        header("Location: kasmasuk.php?success=delete");
-        exit;
-    }
+        .sidebar .profile img {
+            width: 65px;
+            height: 65px;
+            border-radius: 50%;
+            border: 3px solid white;
+            object-fit: cover;
+        }
+    </style>
+</head>
 
-    // read
-    $search = isset($_GET['search']) ? $_GET['search'] : '';
-    $bulan = isset($_GET['bulan']) ? $_GET['bulan'] : '';
-    $tahun = isset($_GET['tahun']) ? $_GET['tahun'] : '';
+<body>
 
-    $where = "transaksi.jenis = 'masuk'";
-    if ($search) {
-        $search_escaped = mysqli_real_escape_string($GLOBALS['db'], $search);
-        $where .= " AND murid.nama LIKE '%$search_escaped%'";
-    }
-    if ($bulan && $tahun) {
-        $where .= " AND MONTH(transaksi.tanggal) = $bulan AND YEAR(transaksi.tanggal) = $tahun";
-    } elseif ($tahun) {
-        $where .= " AND YEAR(transaksi.tanggal) = $tahun";
-    } elseif ($bulan) {
-        $where .= " AND MONTH(transaksi.tanggal) = $bulan";
-    }
+    <div class="d-flex">
 
-    $data = query("SELECT transaksi.*, murid.nama FROM transaksi JOIN murid ON transaksi.id_murid = murid.id_murid WHERE $where ORDER BY transaksi.tanggal DESC");
+        <!-- SIDEBAR -->
+        <div class="sidebar p-3">
+            <h4 class="text-center mb-3">Kas Kelas</h4>
+            <hr>
 
-    // ringkasan kas masuk
-    $ringkasan = ringkasanKasMasuk();
-    ?>
+            <div class="profile text-center mb-3">
+                <img src="assets/piploy.jpg">
+                <p><?= htmlspecialchars($_SESSION['role']) ?></p>
+            </div>
 
-    <!doctype html>
-    <html lang="en">
+            <hr>
 
-    <head>
-        <title>Kas Masuk</title>
-        <!-- Required meta tags -->
-        <meta charset="utf-8" />
-        <meta
-            name="viewport"
-            content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+            <ul class="nav flex-column gap-2">
+                <li><a class="nav-link" href="dashboard.php"><i class="fas fa-home"></i> Dashboard</a></li>
 
-        <!-- Bootstrap CSS v5.2.1 -->
-        <link
-            href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
-            rel="stylesheet"
-            integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN"
-            crossorigin="anonymous" />
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-        <link rel="stylesheet" href="style/style.css">
-    </head>
+                <?php if ($_SESSION['role'] == 'bendahara'): ?>
+                    <li><a class="nav-link" href="datamurid.php"><i class="fas fa-users"></i> Data Murid</a></li>
+                    <li><a class="nav-link active" href="kasmasuk.php"><i class="fas fa-arrow-down"></i> Kas Masuk</a></li>
+                    <li><a class="nav-link" href="kaskeluar.php"><i class="fas fa-arrow-up"></i> Kas Keluar</a></li>
+                <?php endif; ?>
 
-    <body>
-        <!-- sidebar -->
-        <div class="d-flex min-vh-100">
+                <li><a class="nav-link" href="aruskas.php"><i class="fas fa-chart-bar"></i> Arus Kas</a></li>
+                <li><a class="nav-link" href="statusbayar.php"><i class="fas fa-chart-bar"></i> Status Bayar</a></li>
+                <li><a class="nav-link" href="laporan.php"><i class="fas fa-file"></i> Laporan</a></li>
 
-            <!-- SIDEBAR -->
-            <div class="collapse show bg-dark text-white shadow" id="sidebar">
-                <div class="p-3">
+                <hr>
+                <li><a class="nav-link text-danger" href="logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+            </ul>
+        </div>
 
-                    <h4 class="text-center">Kas Kelas</h4>
-                    <hr>
+        <!-- CONTENT -->
+        <div class="flex-fill p-4">
 
-                    <!-- profile -->
-                    <div class="d-flex align-items-center px-2 mb-2">
-                        <img src="assets/piploy.jpg"
-                            class="rounded-circle me-2"
-                            style="width:45px;height:45px;object-fit:cover;">
-                        <p class="fs-5 mb-0"><?= $_SESSION['role']; ?></p>
+            <h4 class="mb-4">Kas Masuk</h4>
+
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <div class="card p-3">
+                        <h6>Total Kas Masuk</h6>
+                        <h4 class="text-primary">Rp <?= number_format($ringkasan['totalKasMasuk']) ?></h4>
                     </div>
+                </div>
 
-                    <hr>
-
-                    <!-- menu -->
-                    <ul class="nav nav-pills flex-column gap-2">
-                        <li class="nav-item">
-                            <a class="nav-link" href="dashboard.php">Dashboard</a>
-                        </li>
-
-                        <li class="nav-item mt-4">
-                            <small class="ms-3">Menu Utama</small>
-                        </li>
-
-                        <li class="nav-item">
-                            <a class="nav-link" href="datamurid.php">Data Murid</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link active" href="kasmasuk.php">Kas Masuk</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="kaskeluar.php">Kas Keluar</a>
-                        </li>
-                        <li class="nav-item mt-4">
-                            <small class="ms-3">Laporan</small>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="aruskas.php">Arus Kas</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="statusbayar.php">Status Bayar</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="laporan.php">Laporan</a>
-                        </li>
-
-                        <hr>
-
-                        <li class="nav-item">
-                            <small class="ms-3">Logout</small>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-danger" href="logout.php">Log Out</a>
-                        </li>
-                    </ul>
+                <div class="col-md-6">
+                    <div class="card p-3">
+                        <h6>Saldo</h6>
+                        <h4 class="text-success">Rp <?= number_format($ringkasan['saldo']) ?></h4>
+                    </div>
                 </div>
             </div>
 
-            <!-- CONTENT -->
-            <div class="flex-fill d-flex flex-column">
-                <!-- TOP NAV -->
-                <nav class="navbar navbar-dark bg-dark">
-                    <div class="container-fluid">
-                        <button class="navbar-toggler"
-                            type="button"
-                            data-bs-toggle="collapse"
-                            data-bs-target="#sidebar">
-                            <span class="navbar-toggler-icon"></span>
-                        </button>
-                        <span class="navbar-brand ms-2">SMK NEGERI 7 SAMARINDA</span>
-                    </div>
-                </nav>
+            <button class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#modalTambahKas">
+                Tambah Kas Masuk
+            </button>
 
-                <!-- main -->
-                <div class="p-4">
-                    <?php if (isset($_GET['success'])): ?>
-                        <div class="alert alert-success alert-dismissible fade show" role="alert" id="successAlert">
-                            <?php
-                            if ($_GET['success'] == 'tambah') echo 'Kas masuk berhasil ditambahkan!';
-                            if ($_GET['success'] == 'update') echo 'Kas masuk berhasil diupdate!';
-                            if ($_GET['success'] == 'delete') echo 'Kas masuk berhasil dihapus!';
-                            // 
-                            ?>
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
-                        <script>
-                            // Auto dismiss alert setelah 3 detik
-                            setTimeout(() => {
-                                const alert = document.getElementById('successAlert');
-                                if (alert) {
-                                    const bsAlert = new bootstrap.Alert(alert);
-                                    bsAlert.close();
-                                }
-                            }, 3000);
-                        </script>
-                    <?php endif; ?>
+            <!-- FILTER -->
+            <form method="GET" class="row g-2 mb-2 mt-3">
 
-                    <!-- ringkasan -->
-                    <h3 class="mb-4">Ringkasan</h3>
-                    <div class="row g-3">
-                        <!-- Kas Masuk -->
-                        <div class="col-12 col-md-6">
-                            <div class="card shadow-sm h-100">
-                                <div class="card-body py-3 px-3 d-flex align-items-center gap-3">
-                                    <div class="fs-3 text-success">
-                                        <i class="fa-solid fa-arrow-trend-up"></i>
-                                    </div>
-                                    <div>
-                                        <h6 class="text-muted mb-1">Total Kas Masuk</h6>
-                                        <h5 class="fw-bold mb-0">Rp <?= number_format($ringkasan['totalKasMasuk'], 0, ',', '.'); ?></h5>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                <div class="col-md-4">
+                    <label>Cari Nama Siswa</label>
+                    <input type="text" name="search" class="form-control"
+                        placeholder="Masukkan nama..."
+                        value="<?= $_GET['search'] ?? '' ?>">
+                </div>
 
-                        <!-- Belum Dibayar -->
-                        <div class="col-12 col-md-6">
-                            <div class="card shadow-sm h-100">
-                                <div class="card-body py-3 px-3 d-flex align-items-center gap-3">
-                                    <div class="fs-3 text-secondary">
-                                        <i class="fa-solid fa-wallet"></i>
-                                    </div>
-                                    <div>
-                                        <h6 class="text-muted mb-1">Kas Masuk Bulan Ini</h6>
-                                        <h5 class="fw-bold mb-0">Rp <?= number_format($ringkasan['kasBulanIni'], 0, ',', '.'); ?></h5>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                <div class="col-md-3">
+                    <label>Bulan</label>
+                    <input type="month" name="bulan" class="form-control"
+                        value="<?= $_GET['bulan'] ?? '' ?>">
+                </div>
 
-                        <!-- Jumlah Bayar -->
-                        <div class="col-12 col-md-6">
-                            <div class="card shadow-sm h-100">
-                                <div class="card-body py-3 px-3 d-flex align-items-center gap-3">
-                                    <div class="fs-3 text-success">
-                                        <i class="fa-solid fa-circle"></i>
-                                    </div>
-                                    <div>
-                                        <h6 class="text-muted mb-1">Murid Sudah Bayar</h6>
-                                        <h5 class="fw-bold mb-0"><?= $ringkasan['sudahBayar']; ?></h5>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button class="btn btn-primary me-2">Filter</button>
+                    <a href="kasmasuk.php" class="btn btn-secondary">Reset</a>
+                </div>
 
-                        <!-- Pembayaran Terakhir -->
-                        <div class="col-12 col-md-6">
-                            <div class="card shadow-sm h-100">
-                                <div class="card-body py-3 px-3 d-flex align-items-center gap-3">
-                                    <div class="fs-3 text-danger">
-                                        <i class="fa-solid fa-circle"></i>
-                                    </div>
-                                    <div>
-                                        <h6 class="text-muted mb-1">Murid Belum Bayar</h6>
-                                        <h5 class="fw-bold mb-0"><?= $ringkasan['belumBayar'] ?></h5>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+            </form>
+            <!-- TABLE -->
+            <div class="card">
+                <div class="card-body">
 
-                    <!-- Button Tambah Kas -->
-                    <div class="d-grid gap-2 mt-4">
-                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalTambahKas">
-                            Tambah Uang Kas
-                        </button>
-                    </div>
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Tanggal</th>
+                                <th>Nama</th>
+                                <th>Jumlah</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
 
-                    <!-- Modal Tambah Kas -->
-                    <div class="modal fade" id="modalTambahKas" tabindex="-1" aria-labelledby="modalTambahKasLabel" aria-hidden="true">
-                        <div class="modal-dialog modal-md modal-dialog-centered">
-                            <div class="modal-content">
-                                <!-- header -->
-                                <div class="modal-header">
-                                    <h5 class="modal-title" id="modalTambahKasLabel"><?= $edit ? 'Edit Kas' : 'Tambah Kas Masuk' ?></h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                </div>
-                                <!-- body -->
-                                <form action="" method="POST">
-                                    <input type="hidden" name="id_transaksi" value="<?= $edit['id_transaksi'] ?? '' ?>">
+                        <?php foreach ($data as $row): ?>
+                            <tr>
+                                <td><?= $row['tanggal'] ?></td>
+                                <td><?= $row['nama'] ?></td>
+                                <td>Rp <?= number_format($row['jumlah']) ?></td>
+                                <td>
+                                    <!-- BUTTON EDIT -->
+                                    <button class="btn btn-warning btn-sm"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#modalEdit<?= $row['id_transaksi'] ?>">
+                                        Edit
+                                    </button>
+
+                                    <!-- BUTTON HAPUS -->
+                                    <a href="?hapus=<?= $row['id_transaksi'] ?>"
+                                        onclick="return confirm('Hapus data?')"
+                                        class="btn btn-danger btn-sm">
+                                        Hapus
+                                    </a>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+
+                    </table>
+                    <?php foreach ($data as $row): ?>
+                        <div class="modal fade" id="modalEdit<?= $row['id_transaksi'] ?>">
+                            <div class="modal-dialog modal-dialog-centered">
+                                <form method="POST" class="modal-content">
+
+                                    <input type="hidden" name="id_transaksi" value="<?= $row['id_transaksi'] ?>">
+
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Edit Kas Masuk</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+
                                     <div class="modal-body">
-                                        <!-- Nama Siswa -->
+
                                         <div class="mb-3">
-                                            <label class="form-label">Nama Siswa</label>
-                                            <select name="id_murid" class="form-control" <?= $edit ? 'disabled' : '' ?> required>
-                                                <option value="">-- Pilih Siswa --</option>
-                                                <?php foreach ($murid as $m): ?>
-                                                    <option value="<?= $m['id_murid']; ?>"
-                                                        <?= isset($edit) && $m['id_murid'] == $edit['id_murid'] ? 'selected' : ''; ?>>
-                                                        <?= $m['nama']; ?>
+                                            <label>Nama Siswa</label>
+                                            <select name="id_murid" class="form-control" disabled>
+                                                <?php foreach ($murid as $s): ?>
+                                                    <option value="<?= $s['id_murid'] ?>"
+                                                        <?= ($row['id_murid'] == $s['id_murid']) ? 'selected' : '' ?>>
+                                                        <?= $s['nama'] ?>
                                                     </option>
                                                 <?php endforeach; ?>
                                             </select>
                                         </div>
-                                        <!-- Tanggal -->
-                                        <div class="mb-3">
-                                            <label class="form-label">Tanggal</label>
-                                            <input type="date" name="tanggal" class="form-control" value="<?= $edit ? $edit['tanggal'] : date('Y-m-d') ?>" readonly>
-                                        </div>
-                                        <?php if ($hasKategoriColumn): ?>
-                                            <!-- Kategori -->
-                                            <div class="mb-3">
-                                                <label class="form-label">Kategori</label>
-                                                <select name="id_kategori" class="form-control" required>
-                                                    <option value="">-- Pilih Kategori --</option>
-                                                    <?php while ($cat = mysqli_fetch_assoc($kategori)): ?>
-                                                        <option value="<?= $cat['id_kategori']; ?>" <?= isset($edit) && $edit && $edit['id_kategori'] == $cat['id_kategori'] ? 'selected' : ''; ?>>
-                                                            <?= htmlspecialchars($cat['nama']); ?>
-                                                        </option>
-                                                    <?php endwhile; ?>
-                                                </select>
-                                            </div>
-                                        <?php endif; ?>
 
-                                        <!-- Jumlah -->
                                         <div class="mb-3">
-                                            <label class="form-label">Jumlah</label>
-                                            <input type="number" name="jumlah" class="form-control" value="<?= $edit['jumlah'] ?? '' ?>" required>
+                                            <label>Jumlah</label>
+                                            <input type="number" name="jumlah" value="<?= $row['jumlah'] ?>" class="form-control">
                                         </div>
+
                                     </div>
-                                    <!-- Footer -->
+
                                     <div class="modal-footer">
-                                        <?php if ($edit): ?>
-                                            <a href="kasmasuk.php" class="btn btn-secondary">Batal</a>
-                                            <button name="update" class="btn btn-warning">Update</button>
-                                        <?php else: ?>
-                                            <button name="simpan" class="btn btn-primary">Simpan</button>
-                                        <?php endif; ?>
+                                        <button name="update" class="btn btn-warning">Update</button>
                                     </div>
+
                                 </form>
                             </div>
                         </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- MODAL TAMBAH -->
+    <div class="modal fade" id="modalTambahKas">
+        <div class="modal-dialog modal-dialog-centered">
+            <form method="POST" class="modal-content">
+
+                <div class="modal-header">
+                    <h5 class="modal-title">Tambah Kas Masuk</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+
+                    <div class="mb-3">
+                        <label>Nama Siswa</label>
+                        <select name="id_murid" class="form-control" required>
+                            <option value="">-- Pilih Siswa --</option>
+                            <?php foreach ($murid as $s): ?>
+                                <option value="<?= $s['id_murid'] ?>">
+                                    <?= htmlspecialchars($s['nama']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
 
-                    <!--  -->
-                    <form action="">
-                        <div class="mt-3">
-                            <div class="card mt-3">
-                                <div class="card-body">
-                                    <h5>Daftar Kas Masuk</h5>
-                                    <hr>
-                                    <div class="mb-6">
-                                        <form method="GET" id="searchForm">
-                                            <div class="row g-2">
-                                                <div class="col-md-6">
-                                                    <small class="text-muted d-block mb-2">Cari berdasarkan nama siswa</small>
-                                                    <input type="text" name="search" class="form-control" placeholder="Cari nama siswa..." id="searchInput" value="<?= htmlspecialchars($search ?? ''); ?>">
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <small class="text-muted d-block mb-2">Filter berdasarkan bulan</small>
-                                                    <select name="bulan" class="form-select">
-                                                        <option value="">Pilih Bulan</option>
-                                                        <option value="1" <?= $bulan == 1 ? 'selected' : '' ?>>Januari</option>
-                                                        <option value="2" <?= $bulan == 2 ? 'selected' : '' ?>>Februari</option>
-                                                        <option value="3" <?= $bulan == 3 ? 'selected' : '' ?>>Maret</option>
-                                                        <option value="4" <?= $bulan == 4 ? 'selected' : '' ?>>April</option>
-                                                        <option value="5" <?= $bulan == 5 ? 'selected' : '' ?>>Mei</option>
-                                                        <option value="6" <?= $bulan == 6 ? 'selected' : '' ?>>Juni</option>
-                                                        <option value="7" <?= $bulan == 7 ? 'selected' : '' ?>>Juli</option>
-                                                        <option value="8" <?= $bulan == 8 ? 'selected' : '' ?>>Agustus</option>
-                                                        <option value="9" <?= $bulan == 9 ? 'selected' : '' ?>>September</option>
-                                                        <option value="10" <?= $bulan == 10 ? 'selected' : '' ?>>Oktober</option>
-                                                        <option value="11" <?= $bulan == 11 ? 'selected' : '' ?>>November</option>
-                                                        <option value="12" <?= $bulan == 12 ? 'selected' : '' ?>>Desember</option>
-                                                    </select>
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <small class="text-muted d-block mb-2">Filter berdasarkan tahun</small>
-                                                    <input type="number" name="tahun" class="form-control" placeholder="Tahun" value="<?= htmlspecialchars($tahun ?? ''); ?>" min="2000">
-                                                </div>
-                                                <div class="col-md-12">
-                                                    <button type="submit" class="btn btn-primary w-100">Cari</button>
-                                                </div>
-                                            </div>
-                                        </form>
-                                    </div>
-                                    <!-- tabel -->
-                                    <table class="table table-hover table-striped border mt-3">
-                                        <thead>
-                                            <tr>
-                                                <th scope="col">Tanggal</th>
-                                                <th scope="col">Nama Siswa</th>
-                                                <th scope="col">Jumlah</th>
-                                                <th scope="col">Aksi</th>
-                                            </tr>
-                                        </thead>
+                    <div class="mb-3">
+                        <label>Jumlah</label>
+                        <input type="number" name="jumlah" class="form-control" required>
+                    </div>
 
-                                        <tbody>
-                                            <?php
-                                            $jumlahData = mysqli_num_rows($data);
-                                            if ($jumlahData == 0) {
-                                                echo '<tr><td colspan="4" class="text-center text-muted py-4">Tidak ada data</td></tr>';
-                                            } else {
-                                                while ($row = mysqli_fetch_assoc($data)) :
-                                            ?>
-                                                    <tr>
-                                                        <td><?= $row['tanggal']; ?></td>
-                                                        <td><?= $row['nama']; ?></td>
-                                                        <td><?= number_format($row['jumlah'], 0, ',', '.'); ?></td>
-                                                        <td>
-                                                            <a href="?edit=<?= $row['id_transaksi']; ?>"
-                                                                class="btn btn-sm btn-warning">
-                                                                <i class="fa-solid fa-pen-to-square"></i>
-                                                            </a>
-                                                            <a href="?hapus=<?= $row['id_transaksi']; ?>"
-                                                                onclick="return confirm('Hapus data?')"
-                                                                class="btn btn-sm btn-danger">
-                                                                <i class="fa-solid fa-trash"></i>
-                                                            </a>
-                                                        </td>
-                                                    </tr>
-                                            <?php
-                                                endwhile;
-                                            }
-                                            ?>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
+                    <?php if ($hasKategoriColumn): ?>
+                        <div class="mb-3">
+                            <label>Kategori</label>
+                            <select name="id_kategori" class="form-control">
+                                <option value="">-- Tanpa Kategori --</option>
+                                <?php foreach ($kategori as $k): ?>
+                                    <option value="<?= $k['id_kategori'] ?>">
+                                        <?= htmlspecialchars($k['nama']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
                         </div>
-                    </form>
+                    <?php endif; ?>
+
                 </div>
-                <footer class="border-top py-2 text-center text-muted small mt-5">
-                    © Kas Kelas Atika
-                </footer>
-            </div>
+
+                <div class="modal-footer">
+                    <button type="submit" name="simpan" class="btn btn-success">Simpan</button>
+                </div>
+
+            </form>
         </div>
-        </div>
-        <script
-            src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"
-            integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r"
-            crossorigin="anonymous"></script>
+    </div>
 
-        <script
-            src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.min.js"
-            integrity="sha384-BBtl+eGJRgqQAUMxJ7pMwbEyER4l1g+O15P+16Ep7Q9Q+zqX6gSbd85u4mG4QzX+"
-            crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
-        <script>
-            // Buka modal otomatis jika ada data edit
-            <?php if ($edit): ?>
-                const modalTambahKas = new bootstrap.Modal(document.getElementById('modalTambahKas'));
-                modalTambahKas.show();
-            <?php endif; ?>
+</body>
 
-            // Auto-reset search ketika input kosong
-            const searchInput = document.getElementById('searchInput');
-            if (searchInput) {
-                searchInput.addEventListener('input', function() {
-                    if (this.value === '') {
-                        window.location.href = 'kasmasuk.php';
-                    }
-                });
-            }
-        </script>
-    </body>
-
-    </html>
+</html>

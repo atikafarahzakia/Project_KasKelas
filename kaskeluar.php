@@ -61,12 +61,14 @@ if (isset($_GET['hapus'])) {
 // FILTER
 $search = $_GET['search'] ?? '';
 $bulan = $_GET['bulan'] ?? '';
-$tahun = $_GET['tahun'] ?? '';
 
 $where = "t.jenis='keluar'";
 
-if ($bulan) $where .= " AND MONTH(t.tanggal)='$bulan'";
-if ($tahun) $where .= " AND YEAR(t.tanggal)='$tahun'";
+if ($bulan) {
+    $where .= " AND DATE_FORMAT(t.tanggal, '%Y-%m') = '$bulan'";
+}
+
+// if ($tahun) $where .= " AND YEAR(t.tanggal)='$tahun'";
 
 if ($search) {
     $s = mysqli_real_escape_string($db, $search);
@@ -121,7 +123,7 @@ $keluar = ringkasanKasKeluar();
             border-radius: 12px;
         }
 
-        /* SIDEBAR SAMA */
+        /* SIDEBAR ASLI (TIDAK DIUBAH) */
         .sidebar {
             width: 250px;
             min-height: 100vh;
