@@ -117,7 +117,7 @@ foreach ($dataChart as $d) {
             <hr>
 
             <div class="profile text-center mb-3">
-                <img src="assets/piploy.jpg">
+                <img src="assets/profile.jpg">
                 <p><?= $_SESSION['role']; ?></p>
             </div>
 

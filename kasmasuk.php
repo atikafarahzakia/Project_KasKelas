@@ -163,7 +163,7 @@ $ringkasan = ringkasanKasMasuk();
             <hr>
 
             <div class="profile text-center mb-3">
-                <img src="assets/piploy.jpg">
+                <img src="assets/profile.jpg">
                 <p><?= htmlspecialchars($_SESSION['role']) ?></p>
             </div>
 
@@ -218,7 +218,6 @@ $ringkasan = ringkasanKasMasuk();
                 <div class="col-md-4">
                     <label>Cari Nama Siswa</label>
                     <input type="text" name="search" class="form-control"
-                        placeholder="Masukkan nama..."
                         value="<?= $_GET['search'] ?? '' ?>">
                 </div>
 

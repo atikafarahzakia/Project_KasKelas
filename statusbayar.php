@@ -120,14 +120,14 @@ while ($d = mysqli_fetch_assoc($dataChart)) {
             <hr>
 
             <div class="profile text-center mb-3">
-                <img src="assets/piploy.jpg">
+                <img src="assets/profile.jpg">
                 <p><?= $_SESSION['role']; ?></p>
             </div>
 
             <hr>
 
             <ul class="nav flex-column gap-2">
-
+`
                 <li><a class="nav-link" href="dashboard.php"><i class="fas fa-home"></i> Dashboard</a></li>
 
                 <?php if ($_SESSION['role'] == 'bendahara'): ?>

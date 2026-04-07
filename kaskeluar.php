@@ -123,7 +123,7 @@ $keluar = ringkasanKasKeluar();
             border-radius: 12px;
         }
 
-        /* SIDEBAR ASLI (TIDAK DIUBAH) */
+       /* SIDEBAR ASLI (TIDAK DIUBAH) */
         .sidebar {
             width: 250px;
             min-height: 100vh;
@@ -173,7 +173,7 @@ $keluar = ringkasanKasKeluar();
             <hr>
 
             <div class="profile text-center mb-3">
-                <img src="assets/piploy.jpg">
+                <img src="assets/profile.jpg">
                 <p><?= htmlspecialchars($_SESSION['role']) ?></p>
             </div>
 
