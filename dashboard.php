@@ -139,19 +139,27 @@ $q = query("
         <!-- CONTENT -->
         <div class="flex-fill p-4">
 
-            <h4 class="mb-4">Selamat Datang, </h4>
+            <h4 class="mb-4">Selamat Datang, <?= $_SESSION['username']; ?> </h4>
 
-            <!-- SALDO -->
+            <!-- SALDO
             <div class="card mt-3 shadow-sm">
                 <div class="card-body">
                     <h5>Total Saldo Kas</h5>
                     <h3>Rp <?= number_format(getSaldo()); ?></h3>
                 </div>
-            </div>
+            </div> -->
 
             <!-- RINGKASAN -->
             <div class="row mt-4 g-3 text-center">
 
+                <div class="col-md-3">
+                    <div class="card summary-card">
+                        <div class="card-body">
+                            <h6>Saldo Kas</h6>
+                            <h5>Rp <?= number_format($arusBulanIni); ?></h5>
+                        </div>
+                    </div>
+                </div>
                 <div class="col-md-3">
                     <div class="card summary-card">
                         <div class="card-body">
@@ -170,14 +178,7 @@ $q = query("
                     </div>
                 </div>
 
-                <div class="col-md-3">
-                    <div class="card summary-card">
-                        <div class="card-body">
-                            <h6>Arus Kas</h6>
-                            <h5>Rp <?= number_format($arusBulanIni); ?></h5>
-                        </div>
-                    </div>
-                </div>
+
 
                 <div class="col-md-3">
                     <div class="card summary-card">

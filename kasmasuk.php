@@ -4,7 +4,12 @@ session_start();
 // Ambil data murid dan kategori
 $murid = query("SELECT * FROM murid");
 $hasKategoriColumn = mysqli_num_rows(query("SHOW COLUMNS FROM transaksi LIKE 'id_kategori'")) > 0;
-$kategori = $hasKategoriColumn ? query("SELECT * FROM kategori") : null;
+
+$kategori = [];
+
+if ($hasKategoriColumn) {
+    $kategori = query("SELECT id_kategori, nama FROM kategori");
+}
 
 // ================= TAMBAH =================
 if (isset($_POST['simpan'])) {
@@ -351,12 +356,20 @@ $ringkasan = ringkasanKasMasuk();
                         <div class="mb-3">
                             <label>Kategori</label>
                             <select name="id_kategori" class="form-control">
-                                <option value="">-- Tanpa Kategori --</option>
-                                <?php foreach ($kategori as $k): ?>
-                                    <option value="<?= $k['id_kategori'] ?>">
-                                        <?= htmlspecialchars($k['nama']) ?>
-                                    </option>
-                                <?php endforeach; ?>
+
+                                <?php if (!empty($kategori)): ?>
+                                    <option value="">-- Pilih Kategori --</option>
+
+                                    <?php foreach ($kategori as $k): ?>
+                                        <option value="<?= $k['id_kategori'] ?>">
+                                            <?= htmlspecialchars($k['nama']) ?>
+                                        </option>
+                                    <?php endforeach; ?>
+
+                                <?php else: ?>
+                                    <option disabled selected>Data kategori tidak ada</option>
+                                <?php endif; ?>
+
                             </select>
                         </div>
                     <?php endif; ?>
