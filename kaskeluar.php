@@ -123,7 +123,7 @@ $keluar = ringkasanKasKeluar();
             border-radius: 12px;
         }
 
-       /* SIDEBAR ASLI (TIDAK DIUBAH) */
+        /* SIDEBAR ASLI (TIDAK DIUBAH) */
         .sidebar {
             width: 250px;
             min-height: 100vh;
@@ -182,8 +182,11 @@ $keluar = ringkasanKasKeluar();
             <ul class="nav flex-column gap-2">
                 <li><a class="nav-link" href="dashboard.php"><i class="fas fa-home"></i> Dashboard</a></li>
 
-                <?php if ($_SESSION['role'] == 'bendahara'): ?>
+                <?php if ($_SESSION['role'] == 'wali kelas'): ?>
                     <li><a class="nav-link" href="datamurid.php"><i class="fas fa-users"></i> Data Murid</a></li>
+                <?php endif; ?>
+
+                <?php if ($_SESSION['role'] == 'bendahara'): ?>                    
                     <li><a class="nav-link" href="kasmasuk.php"><i class="fas fa-arrow-down"></i> Kas Masuk</a></li>
                     <li><a class="nav-link active" href="kaskeluar.php"><i class="fas fa-arrow-up"></i> Kas Keluar</a></li>
                 <?php endif; ?>
