@@ -5,10 +5,8 @@ include 'config/app.php';
 // CREATE
 if (isset($_POST['simpan'])) {
     query("INSERT INTO murid VALUES(
-        NULL,
-        '$_POST[nama]',
-        '$_POST[kelas]',
-        'aktif'
+        '$_POST[nisn]',
+        '$_POST[nama]'  
     )");
 
     header("Location: datamurid.php?success=tambah");
@@ -18,10 +16,8 @@ if (isset($_POST['simpan'])) {
 // UPDATE
 if (isset($_POST['update'])) {
     query("UPDATE murid SET
-        nama='$_POST[nama]',
-        kelas='$_POST[kelas]',
-        status='$_POST[status]'
-        WHERE id_murid='$_POST[id_murid]'
+        nama='$_POST[nama]'
+        WHERE nisn='$_POST[nisn]'
     ");
 
     header("Location: datamurid.php?success=update");
@@ -30,14 +26,13 @@ if (isset($_POST['update'])) {
 
 // DELETE
 if (isset($_GET['hapus'])) {
-    query("DELETE FROM murid WHERE id_murid='$_GET[hapus]'");
+    query("DELETE FROM murid WHERE nisn='$_GET[hapus]'");
     header("Location: datamurid.php?success=delete");
     exit;
 }
 
 // FILTER
 $search = $_GET['search'] ?? '';
-$status = $_GET['status'] ?? '';
 
 $where = [];
 
@@ -46,21 +41,15 @@ if ($search) {
     $where[] = "nama LIKE '%$s%'";
 }
 
-if ($status) {
-    $st = mysqli_real_escape_string($GLOBALS['db'], $status);
-    $where[] = "status='$st'";
-}
 
 $whereSql = $where ? "WHERE " . implode(" AND ", $where) : "";
 
-$data = query("SELECT * FROM murid $whereSql ORDER BY id_murid DESC");
+$data = query("SELECT * FROM murid $whereSql ORDER BY nisn ASC");
 
 $no = 1;
 
 // RINGKASAN
 $totalMurid = mysqli_fetch_assoc(query("SELECT COUNT(*) as total FROM murid"))['total'];
-$totalAktif = mysqli_fetch_assoc(query("SELECT COUNT(*) as total FROM murid WHERE status='aktif'"))['total'];
-$totalNonaktif = mysqli_fetch_assoc(query("SELECT COUNT(*) as total FROM murid WHERE status='Tidak Aktif'"))['total'];
 ?>
 
 <!doctype html>
@@ -172,18 +161,6 @@ $totalNonaktif = mysqli_fetch_assoc(query("SELECT COUNT(*) as total FROM murid W
                         <h4><?= $totalMurid ?></h4>
                     </div>
                 </div>
-                <div class="col-md-4">
-                    <div class="card p-3 text-center">
-                        <h6>Murid Aktif</h6>
-                        <h4 class="text-success"><?= $totalAktif ?></h4>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card p-3 text-center">
-                        <h6>Tidak Aktif</h6>
-                        <h4 class="text-danger"><?= $totalNonaktif ?></h4>
-                    </div>
-                </div>
             </div>
 
             <!-- BUTTON -->
@@ -199,15 +176,6 @@ $totalNonaktif = mysqli_fetch_assoc(query("SELECT COUNT(*) as total FROM murid W
                     <input type="text" name="search" class="form-control" value="<?= $search ?>">
                 </div>
 
-                <div class="col-md-3">
-                    <label>Status</label>
-                    <select name="status" class="form-control">
-                        <option value="">Semua</option>
-                        <option value="aktif" <?= ($_GET['status'] ?? '') == 'aktif' ? 'selected' : '' ?>>Aktif</option>
-                        <option value="Tidak Aktif" <?= ($_GET['status'] ?? '') == 'Tidak Aktif' ? 'selected' : '' ?>>Tidak Aktif</option>
-                    </select>
-                </div>
-
                 <div class="col-md-3 d-flex align-items-end">
                     <button class="btn btn-primary me-2">Filter</button>
                     <a href="datamurid.php" class="btn btn-secondary">Reset</a>
@@ -221,10 +189,8 @@ $totalNonaktif = mysqli_fetch_assoc(query("SELECT COUNT(*) as total FROM murid W
                     <table class="table table-hover">
                         <thead>
                             <tr>
-                                <th>No</th>
-                                <th>Nama</th>
-                                <th>Kelas</th>
-                                <th>Status</th>
+                                <th>Nisn</th>
+                                <th>Nama Murid</th>
                                 <th>Aksi</th>
                             </tr>
                         </thead>
@@ -232,20 +198,14 @@ $totalNonaktif = mysqli_fetch_assoc(query("SELECT COUNT(*) as total FROM murid W
                         <tbody>
                             <?php while ($m = mysqli_fetch_assoc($data)): ?>
                                 <tr>
-                                    <td><?= $no++ ?></td>
+                                    <td><?= $m['nisn'] ?></td>
                                     <td><?= $m['nama'] ?></td>
-                                    <td><?= $m['kelas'] ?></td>
                                     <td>
-                                        <span class="badge bg-<?= strtolower($m['status']) == 'aktif' ? 'success' : 'danger' ?>">
-                                            <?= $m['status'] ?>
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <button class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#edit<?= $m['id_murid'] ?>">
+                                        <button class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#edit<?= $m['nisn'] ?>">
                                             Edit
                                         </button>
 
-                                        <a href="?hapus=<?= $m['id_murid'] ?>" onclick="return confirm('hapus?')" class="btn btn-danger btn-sm">
+                                        <a href="?hapus=<?= $m['nisn'] ?>" onclick="return confirm('hapus?')" class="btn btn-danger btn-sm">
                                             Hapus
                                         </a>
                                     </td>
@@ -270,10 +230,10 @@ $totalNonaktif = mysqli_fetch_assoc(query("SELECT COUNT(*) as total FROM murid W
                 </div>
 
                 <div class="modal-body">
+                    <label>Nisn</label>
+                    <input type="text" name="nisn" class="form-control mb-2">
                     <label>Nama</label>
-                    <input type="text" name="nama" class="form-control mb-2">
-                    <label>Kelas</label>
-                    <input type="text" name="kelas" class="form-control">
+                    <input type="text" name="nama" class="form-control">
                 </div>
 
                 <div class="modal-footer">
@@ -286,14 +246,14 @@ $totalNonaktif = mysqli_fetch_assoc(query("SELECT COUNT(*) as total FROM murid W
 
     <!-- 🔥 MODAL EDIT FIX -->
     <?php
-    $dataModal = query("SELECT * FROM murid ORDER BY id_murid DESC");
+    $dataModal = query("SELECT * FROM murid ORDER BY nisn DESC");
     while ($m = mysqli_fetch_assoc($dataModal)):
     ?>
-        <div class="modal fade" id="edit<?= $m['id_murid'] ?>">
+        <div class="modal fade" id="edit<?= $m['nisn'] ?>">
             <div class="modal-dialog modal-dialog-centered">
                 <form method="POST" class="modal-content">
 
-                    <input type="hidden" name="id_murid" value="<?= $m['id_murid'] ?>">
+                    <input type="hidden" name="nisn" value="<?= $m['nisn'] ?>">
 
                     <div class="modal-header">
                         <h5 class="modal-title">Edit Murid</h5>
@@ -301,13 +261,8 @@ $totalNonaktif = mysqli_fetch_assoc(query("SELECT COUNT(*) as total FROM murid W
                     </div>
 
                     <div class="modal-body">
+                        <input type="text" name="nisn" value="<?= $m['nisn'] ?>" class="form-control mb-2">
                         <input type="text" name="nama" value="<?= $m['nama'] ?>" class="form-control mb-2">
-                        <input type="text" name="kelas" value="<?= $m['kelas'] ?>" class="form-control mb-2">
-
-                        <select name="status" class="form-control">
-                            <option <?= $m['status'] == 'aktif' ? 'selected' : '' ?>>aktif</option>
-                            <option <?= $m['status'] == 'Tidak Aktif' ? 'selected' : '' ?>>Tidak Aktif</option>
-                        </select>
                     </div>
 
                     <div class="modal-footer">

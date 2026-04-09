@@ -147,15 +147,15 @@ function ringkasanStatusBayar($kas_wajib)
     $tahun = date('Y');
 
     $result = mysqli_query($db, "
-        SELECT murid.id_murid,
+        SELECT murid.nisn,
                IFNULL(SUM(transaksi.jumlah),0) as total
         FROM murid
         LEFT JOIN transaksi 
-            ON murid.id_murid = transaksi.id_murid
+            ON murid.nisn = transaksi.nisn
             AND transaksi.jenis='masuk'
             AND MONTH(transaksi.tanggal)='$bulan'
             AND YEAR(transaksi.tanggal)='$tahun'
-        GROUP BY murid.id_murid
+        GROUP BY murid.nisn
     ");
 
     $lunas = 0;
@@ -188,15 +188,15 @@ function searchMurid($search = '')
     $search = mysqli_real_escape_string($db, $search);
     
     $q = "
-        SELECT murid.id_murid, murid.nama,
+        SELECT murid.nisn, murid.nama,
                IFNULL(SUM(transaksi.jumlah), 0) AS total
         FROM murid
         LEFT JOIN transaksi 
-            ON murid.id_murid = transaksi.id_murid
+            ON murid.nisn = transaksi.nisn
             AND transaksi.jenis = 'masuk'
             AND MONTH(transaksi.tanggal) = MONTH(CURDATE())
         WHERE murid.nama LIKE '%$search%'
-        GROUP BY murid.id_murid
+        GROUP BY murid.nisn
         ORDER BY murid.nama ASC
     ";
     

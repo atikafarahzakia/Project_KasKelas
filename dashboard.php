@@ -26,13 +26,13 @@ if ($search) {
 
 // QUERY UTAMA (SEMESTER)
 $q = query("
-    SELECT murid.id_murid, nama, IFNULL(SUM(jumlah),0) as total
+    SELECT murid.nisn, nama, IFNULL(SUM(jumlah),0) as total
     FROM murid
     LEFT JOIN transaksi 
-        ON murid.id_murid = transaksi.id_murid
+        ON murid.nisn = transaksi.nisn
         AND jenis='Masuk'
     $where
-    GROUP BY murid.id_murid
+    GROUP BY murid.nisn
     ORDER BY murid.nama ASC
 ");
 

@@ -14,17 +14,11 @@ if ($hasKategoriColumn) {
 // ================= TAMBAH =================
 if (isset($_POST['simpan'])) {
 
-    $id_murid = (int)$_POST['id_murid'];
+    $nisn = (int)$_POST['nisn'];
     $jumlah   = (int)$_POST['jumlah'];
 
-    $columns = 'id_murid, tanggal, jenis, jumlah, keterangan';
-    $values  = "'$id_murid', NOW(), 'masuk', '$jumlah', 'Kas Masuk'";
-
-    if ($hasKategoriColumn) {
-        $kategoriValue = !empty($_POST['id_kategori']) ? (int)$_POST['id_kategori'] : NULL;
-        $columns .= ', id_kategori';
-        $values  .= is_null($kategoriValue) ? ", NULL" : ", '$kategoriValue'";
-    }
+    $columns = 'nisn, tanggal, jenis, jumlah, keterangan, id_kategori';
+    $values  = "'$nisn', NOW(), 'masuk', '$jumlah', 'Kas Masuk', '2'";
 
     query("INSERT INTO transaksi ($columns) VALUES ($values)");
 
@@ -36,25 +30,14 @@ if (isset($_POST['simpan'])) {
 if (isset($_POST['update'])) {
 
     $id        = (int)$_POST['id_transaksi'];
-    $id_murid  = (int)$_POST['id_murid'];
-    $tgl       = $_POST['tanggal'];
+    $nisn  = (int)$_POST['nisn'];
     $jml       = (int)$_POST['jumlah'];
 
-    $kategori_update = '';
-    if ($hasKategoriColumn) {
-        $kategoriValue = !empty($_POST['id_kategori']) ? (int)$_POST['id_kategori'] : NULL;
-        $kategori_update = is_null($kategoriValue)
-            ? ", id_kategori = NULL"
-            : ", id_kategori = '$kategoriValue'";
-    }
-
     query("UPDATE transaksi SET
-        id_murid = '$id_murid',
-        tanggal = '$tgl',
-        jumlah  = '$jml'
-        $kategori_update
-        WHERE id_transaksi = '$id'
-    ");
+    nisn = '$nisn',
+    jumlah  = '$jml'
+    WHERE id_transaksi = '$id'
+");
 
     header("Location: kasmasuk.php?success=update");
     exit;
@@ -70,8 +53,7 @@ if (isset($_GET['hapus'])) {
 
 // ================= FILTER =================
 $search = isset($_GET['search']) ? $_GET['search'] : '';
-$bulan  = isset($_GET['bulan']) ? $_GET['bulan'] : '';
-$tahun  = isset($_GET['tahun']) ? $_GET['tahun'] : '';
+$tanggal = $_GET['tanggal'] ?? '';
 
 $where = "transaksi.jenis = 'masuk'";
 
@@ -80,18 +62,14 @@ if ($search) {
     $where .= " AND murid.nama LIKE '%$search%'";
 }
 
-if ($bulan && $tahun) {
-    $where .= " AND MONTH(transaksi.tanggal) = $bulan AND YEAR(transaksi.tanggal) = $tahun";
-} elseif ($tahun) {
-    $where .= " AND YEAR(transaksi.tanggal) = $tahun";
-} elseif ($bulan) {
-    $where .= " AND MONTH(transaksi.tanggal) = $bulan";
+if ($tanggal) {
+    $where .= " AND DATE(transaksi.tanggal) = '$tanggal'";
 }
 
 // ================= DATA =================
 $data = query("SELECT transaksi.*, murid.nama 
     FROM transaksi 
-    JOIN murid ON transaksi.id_murid = murid.id_murid 
+    JOIN murid ON transaksi.nisn = murid.nisn
     WHERE $where 
     ORDER BY transaksi.tanggal DESC");
 
@@ -198,7 +176,6 @@ $ringkasan = ringkasanKasMasuk();
 
         <!-- CONTENT -->
         <div class="flex-fill p-4">
-
             <h4 class="mb-4">Kas Masuk</h4>
 
             <div class="row mb-3">
@@ -221,6 +198,28 @@ $ringkasan = ringkasanKasMasuk();
                 Tambah Kas Masuk
             </button>
 
+            <?php if (isset($_GET['success'])): ?>
+                <div class="alert alert-success alert-dismissible fade show" role="alert" id="successAlert">
+                    <?php
+                    if ($_GET['success'] == 'tambah') echo 'Kas masuk berhasil ditambahkan!';
+                    if ($_GET['success'] == 'update') echo 'Kas masuk berhasil diupdate!';
+                    if ($_GET['success'] == 'delete') echo 'Kas masuk berhasil dihapus!';
+                    // 
+                    ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                <script>
+                    // Auto dismiss alert setelah 3 detik
+                    setTimeout(() => {
+                        const alert = document.getElementById('successAlert');
+                        if (alert) {
+                            const bsAlert = new bootstrap.Alert(alert);
+                            bsAlert.close();
+                        }
+                    }, 3000);
+                </script>
+            <?php endif; ?>
+
             <!-- FILTER -->
             <form method="GET" class="row g-2 mb-2 mt-3">
 
@@ -232,8 +231,8 @@ $ringkasan = ringkasanKasMasuk();
 
                 <div class="col-md-3">
                     <label>Bulan</label>
-                    <input type="month" name="bulan" class="form-control"
-                        value="<?= $_GET['bulan'] ?? '' ?>">
+                    <input type="date" name="tanggal" class="form-control"
+                        value="<?= $_GET['tanggal'] ?? '' ?>">
                 </div>
 
                 <div class="col-md-3 d-flex align-items-end">
@@ -286,6 +285,7 @@ $ringkasan = ringkasanKasMasuk();
                                 <form method="POST" class="modal-content">
 
                                     <input type="hidden" name="id_transaksi" value="<?= $row['id_transaksi'] ?>">
+                                    <!-- <input type="hidden" name="nisn" value="<?= $row['nisn'] ?>"> -->
 
                                     <div class="modal-header">
                                         <h5 class="modal-title">Edit Kas Masuk</h5>
@@ -296,10 +296,10 @@ $ringkasan = ringkasanKasMasuk();
 
                                         <div class="mb-3">
                                             <label>Nama Siswa</label>
-                                            <select name="id_murid" class="form-control" disabled>
+                                            <select class="form-control" name="nisn">
                                                 <?php foreach ($murid as $s): ?>
-                                                    <option value="<?= $s['id_murid'] ?>"
-                                                        <?= ($row['id_murid'] == $s['id_murid']) ? 'selected' : '' ?>>
+                                                    <option value="<?= $s['nisn'] ?>"
+                                                        <?= ($row['nisn'] == $s['nisn']) ? 'selected' : '' ?>>
                                                         <?= $s['nama'] ?>
                                                     </option>
                                                 <?php endforeach; ?>
@@ -341,10 +341,10 @@ $ringkasan = ringkasanKasMasuk();
 
                     <div class="mb-3">
                         <label>Nama Siswa</label>
-                        <select name="id_murid" class="form-control" required>
+                        <select name="nisn" class="form-control" required>
                             <option value="">-- Pilih Siswa --</option>
                             <?php foreach ($murid as $s): ?>
-                                <option value="<?= $s['id_murid'] ?>">
+                                <option value="<?= $s['nisn'] ?>">
                                     <?= htmlspecialchars($s['nama']) ?>
                                 </option>
                             <?php endforeach; ?>
@@ -355,28 +355,6 @@ $ringkasan = ringkasanKasMasuk();
                         <label>Jumlah</label>
                         <input type="number" name="jumlah" class="form-control" required>
                     </div>
-
-                    <?php if ($hasKategoriColumn): ?>
-                        <div class="mb-3">
-                            <label>Kategori</label>
-                            <select name="id_kategori" class="form-control">
-
-                                <?php if (!empty($kategori)): ?>
-                                    <option value="">-- Pilih Kategori --</option>
-
-                                    <?php foreach ($kategori as $k): ?>
-                                        <option value="<?= $k['id_kategori'] ?>">
-                                            <?= htmlspecialchars($k['nama']) ?>
-                                        </option>
-                                    <?php endforeach; ?>
-
-                                <?php else: ?>
-                                    <option disabled selected>Data kategori tidak ada</option>
-                                <?php endif; ?>
-
-                            </select>
-                        </div>
-                    <?php endif; ?>
 
                 </div>
 

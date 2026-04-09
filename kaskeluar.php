@@ -60,15 +60,9 @@ if (isset($_GET['hapus'])) {
 
 // FILTER
 $search = $_GET['search'] ?? '';
-$bulan = $_GET['bulan'] ?? '';
+$tanggal = $_GET['tanggal'] ?? '';
 
 $where = "t.jenis='keluar'";
-
-if ($bulan) {
-    $where .= " AND DATE_FORMAT(t.tanggal, '%Y-%m') = '$bulan'";
-}
-
-// if ($tahun) $where .= " AND YEAR(t.tanggal)='$tahun'";
 
 if ($search) {
     $s = mysqli_real_escape_string($db, $search);
@@ -81,6 +75,10 @@ if ($search) {
     } else {
         $where .= " AND t.jumlah LIKE '%$s%'";
     }
+}
+
+if ($tanggal) {
+    $where .= " AND DATE(t.tanggal) = '$tanggal'";
 }
 
 // DATA (FIX JOIN KATEGORI)
@@ -186,7 +184,7 @@ $keluar = ringkasanKasKeluar();
                     <li><a class="nav-link" href="datamurid.php"><i class="fas fa-users"></i> Data Murid</a></li>
                 <?php endif; ?>
 
-                <?php if ($_SESSION['role'] == 'bendahara'): ?>                    
+                <?php if ($_SESSION['role'] == 'bendahara'): ?>
                     <li><a class="nav-link" href="kasmasuk.php"><i class="fas fa-arrow-down"></i> Kas Masuk</a></li>
                     <li><a class="nav-link active" href="kaskeluar.php"><i class="fas fa-arrow-up"></i> Kas Keluar</a></li>
                 <?php endif; ?>
@@ -241,33 +239,27 @@ $keluar = ringkasanKasKeluar();
 
                 <!-- BULAN -->
                 <div class="col-md-3">
-                    <select name="bulan" class="form-control">
-                        <option value="">-- Pilih Bulan --</option>
-                        <?php for ($i = 1; $i <= 12; $i++): ?>
-                            <option value="<?= $i ?>" <?= ($bulan == $i) ? 'selected' : '' ?>>
-                                <?= date('F', mktime(0, 0, 0, $i, 1)) ?>
-                            </option>
-                        <?php endfor; ?>
-                    </select>
+                    <input type="date" name="tanggal" class="form-control"
+                        value="<?= $_GET['tangal'] ?? '' ?>">
                 </div>
 
                 <!-- TAHUN -->
-                <div class="col-md-3">
-                    <select name="tahun" class="form-control">
-                        <option value="">-- Pilih Tahun --</option>
-                        <?php
-                        $currentYear = date('Y');
-                        for ($i = $currentYear; $i >= $currentYear - 5; $i--): ?>
-                            <option value="<?= $i ?>" <?= ($tahun == $i) ? 'selected' : '' ?>>
-                                <?= $i ?>
+                <div class="col-md-2">
+                    <select name="kategori" class="form-control">
+                        <option value="">-- Pilih Kategori --</option>
+                        <?php foreach ($kategori as $cat): ?>
+                            <option value="<?= $cat['id_kategori'] ?>"
+                                <?= (($_GET['kategori'] ?? '') == $cat['id_kategori']) ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($cat['nama']) ?>
                             </option>
-                        <?php endfor; ?>
+                        <?php endforeach; ?>
                     </select>
                 </div>
 
                 <!-- BUTTON -->
-                <div class="col-md-2 d-grid">
-                    <button class="btn btn-primary">Filter</button>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button class="btn btn-primary me-2">Filter</button>
+                    <a href="kaskeluar.php" class="btn btn-secondary">Reset</a>
                 </div>
             </form>
 

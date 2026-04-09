@@ -16,13 +16,13 @@ if ($search) {
 
 // QUERY UTAMA (SEMESTER)
 $q = query("
-    SELECT murid.id_murid, nama, IFNULL(SUM(jumlah),0) as total
+    SELECT murid.nisn, nama, IFNULL(SUM(jumlah),0) as total
     FROM murid
     LEFT JOIN transaksi 
-        ON murid.id_murid = transaksi.id_murid
+        ON murid.nisn = transaksi.nisn
         AND jenis='Masuk'
     $where
-    GROUP BY murid.id_murid
+    GROUP BY murid.nisn
     ORDER BY murid.nama ASC
 ");
 
@@ -31,9 +31,9 @@ $dataChart = query("
     SELECT nama, IFNULL(SUM(jumlah),0) as total
     FROM murid
     LEFT JOIN transaksi 
-        ON murid.id_murid = transaksi.id_murid
+        ON murid.nisn = transaksi.nisn
         AND jenis='Masuk'
-    GROUP BY murid.id_murid
+    GROUP BY murid.nisn
 ");
 
 $nama = [];
@@ -43,6 +43,9 @@ while ($d = mysqli_fetch_assoc($dataChart)) {
     $nama[] = $d['nama'];
     $total[] = $d['total'];
 }
+
+$ringkasan = ringkasanStatusBayar($target_kas);
+
 ?>
 <!doctype html>
 <html lang="en">
@@ -113,7 +116,6 @@ while ($d = mysqli_fetch_assoc($dataChart)) {
     <div class="d-flex">
 
         <!-- SIDEBAR -->
-        <!-- SIDEBAR -->
         <div class="sidebar p-3">
 
             <h4 class="text-center mb-3">Kas Kelas</h4>
@@ -132,9 +134,9 @@ while ($d = mysqli_fetch_assoc($dataChart)) {
                 <?php if ($_SESSION['role'] == 'wali kelas'): ?>
                     <li><a class="nav-link" href="datamurid.php"><i class="fas fa-users"></i> Data Murid</a></li>
                 <?php endif; ?>
-                
+
                 <?php if ($_SESSION['role'] == 'bendahara'): ?>
-                    
+
                     <li><a class="nav-link" href="kasmasuk.php"><i class="fas fa-arrow-down"></i> Kas Masuk</a></li>
                     <li><a class="nav-link" href="kaskeluar.php"><i class="fas fa-arrow-up"></i> Kas Keluar</a></li>
                 <?php endif; ?>
@@ -155,8 +157,36 @@ while ($d = mysqli_fetch_assoc($dataChart)) {
 
             <h4 class="mb-4">Status Pembayaran</h4>
 
+            <div class="row mb-3">
+
+                <div class="col-md-4">
+                    <div class="card p-3 text-center">
+                        <h6 class="text-success">Lunas</h6>
+                        <h3><?= $ringkasan['lunas']; ?></h3>
+                        <small>Siswa</small>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="card p-3 text-center">
+                        <h6 class="text-warning">Sebagian</h6>
+                        <h3><?= $ringkasan['sebagian']; ?></h3>
+                        <small>Siswa</small>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="card p-3 text-center">
+                        <h6 class="text-danger">Belum Bayar</h6>
+                        <h3><?= $ringkasan['belum']; ?></h3>
+                        <small>Siswa</small>
+                    </div>
+                </div>
+
+            </div>
+
             <!-- FILTER -->
-            <form method="GET" class="card p-3 mb-4">
+            <form method="GET" class="row g-2 mb-2 mt-3">
                 <div class="row g-2">
 
                     <div class="col-md-5">
@@ -176,7 +206,8 @@ while ($d = mysqli_fetch_assoc($dataChart)) {
                     </div>
 
                     <div class="col-md-2 d-flex align-items-end">
-                        <button class="btn btn-primary w-100">Cari</button>
+                        <button class="btn btn-primary me-2">Filter</button>
+                        <a href="kaskeluar.php" class="btn btn-secondary">Reset</a>
                     </div>
 
                 </div>
@@ -218,8 +249,10 @@ while ($d = mysqli_fetch_assoc($dataChart)) {
                                 ?>
 
                                 <tr>
-                                    <td><?= $m['nama']; ?></td>
-
+                                    <td><?= $m['nama']; ?>
+                                        <br>
+                                        <a href=""><small>view</small></a>
+                                    </td>
                                     <td>
                                         <span class="badge bg-<?= $w ?>"><?= $s ?></span>
                                     </td>
@@ -246,13 +279,13 @@ while ($d = mysqli_fetch_assoc($dataChart)) {
                 </div>
             </div>
 
-            <!-- CHART (PINDAH KE BAWAH) -->
+            <!-- CHART (PINDAH KE BAWAH)
             <div class="card">
                 <div class="card-body">
                     <h6>Grafik Pembayaran Siswa</h6>
                     <canvas id="chartKas" height="100"></canvas>
                 </div>
-            </div>
+            </div> -->
 
         </div>
     </div>
