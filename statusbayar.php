@@ -39,7 +39,7 @@ $dataChart = query("
 $nama = [];
 $total = [];
 
-while ($d = mysqli_fetch_assoc($dataChart)) {
+foreach ($dataChart as $d) {
     $nama[] = $d['nama'];
     $total[] = $d['total'];
 }
@@ -227,7 +227,7 @@ $ringkasan = ringkasanStatusBayar($target_kas);
                         </thead>
 
                         <tbody>
-                            <?php while ($m = mysqli_fetch_assoc($q)): ?>
+                            <?php foreach ($q as $m): ?>
 
                                 <?php
                                 if ($m['total'] == 0) {
@@ -271,22 +271,13 @@ $ringkasan = ringkasanStatusBayar($target_kas);
                                     </td>
                                 </tr>
 
-                            <?php endwhile; ?>
+                            <?php endforeach; ?>
                         </tbody>
 
                     </table>
 
                 </div>
             </div>
-
-            <!-- CHART (PINDAH KE BAWAH)
-            <div class="card">
-                <div class="card-body">
-                    <h6>Grafik Pembayaran Siswa</h6>
-                    <canvas id="chartKas" height="100"></canvas>
-                </div>
-            </div> -->
-
         </div>
     </div>
 

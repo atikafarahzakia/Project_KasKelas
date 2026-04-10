@@ -8,10 +8,11 @@ include 'config/app.php';
 // Ringkasan
 $masukBulanIni = kasMasukBulanIni();
 $keluarBulanIni = kasKeluarBulanIni();
-$arusBulanIni = arusKasBulanIni();
+$totalsaldo = totalsaldo();
 
 
 $target_kas = 240000; // semester
+
 
 $search = $_GET['search'] ?? '';
 $status_filter = $_GET['status'] ?? '';
@@ -160,10 +161,11 @@ $q = query("
                     <div class="card summary-card">
                         <div class="card-body">
                             <h6>Saldo Kas</h6>
-                            <h5>Rp <?= number_format($arusBulanIni); ?></h5>
+                            <h5>Rp <?= number_format($totalsaldo); ?></h5>
                         </div>
                     </div>
                 </div>
+                
                 <div class="col-md-3">
                     <div class="card summary-card">
                         <div class="card-body">
@@ -244,7 +246,7 @@ $q = query("
                                 </thead>
 
                                 <tbody>
-                                    <?php while ($m = mysqli_fetch_assoc($q)): ?>
+                                    <?php foreach ($q as $m): ?>
 
                                         <?php
                                         if ($m['total'] == 0) {
@@ -286,7 +288,7 @@ $q = query("
                                             </td>
                                         </tr>
 
-                                    <?php endwhile; ?>
+                                    <?php endforeach; ?>
                                 </tbody>
 
                             </table>

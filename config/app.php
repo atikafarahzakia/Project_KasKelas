@@ -1,67 +1,78 @@
 <?php
 include 'conn.php';
+
+// ================== QUERY (FIX UTAMA) ==================
 function query($q)
 {
     global $db;
-    return mysqli_query($db, $q);
+
+    $result = mysqli_query($db, $q);
+
+    // kalau SELECT → ubah jadi array
+    if (is_object($result)) {
+        $rows = [];
+        while ($row = mysqli_fetch_assoc($result)) {
+            $rows[] = $row;
+        }
+        return $rows;
+    }
+
+    // kalau INSERT / UPDATE / DELETE
+    return $result;
 }
 
 // ================== TAMPILKAN SALDO ==================
 function getSaldo()
 {
-    global $db;
-    $m = mysqli_fetch_assoc(mysqli_query($db, "SELECT SUM(jumlah) t FROM transaksi WHERE jenis='masuk'"))['t'];
-    $k = mysqli_fetch_assoc(mysqli_query($db, "SELECT SUM(jumlah) t FROM transaksi WHERE jenis='keluar'"))['t'];
-    return ($m ?? 0) - ($k ?? 0);
+    $m = query("SELECT SUM(jumlah) t FROM transaksi WHERE jenis='masuk'");
+    $k = query("SELECT SUM(jumlah) t FROM transaksi WHERE jenis='keluar'");
+
+    return ($m[0]['t'] ?? 0) - ($k[0]['t'] ?? 0);
 }
 
 // ================== TAMPILKAN DATA SISWA ==================
 function dataSiswa()
 {
     $data = query("SELECT * FROM murid");
-    return mysqli_num_rows($data);
+    return count($data);
 }
 
 // ================== KAS MASUK BULAN INI ==================
 function kasMasukBulanIni()
 {
-    global $db;
-
     $bulan = date('m');
     $tahun = date('Y');
 
-    $result = mysqli_fetch_assoc(mysqli_query($db, "
+    $result = query("
         SELECT SUM(jumlah) as total
         FROM transaksi
         WHERE jenis='masuk'
         AND MONTH(tanggal)='$bulan'
         AND YEAR(tanggal)='$tahun'
-    "));
+    ");
 
-    return $result['total'] ?? 0;
+    return $result[0]['total'] ?? 0;
 }
 
 // ================== KAS KELUAR BULAN INI ==================
 function kasKeluarBulanIni()
 {
-    global $db;
-
     $bulan = date('m');
     $tahun = date('Y');
 
-    $result = mysqli_fetch_assoc(mysqli_query($db, "
+    $result = query("
         SELECT SUM(jumlah) as total
         FROM transaksi
         WHERE jenis='keluar'
         AND MONTH(tanggal)='$bulan'
         AND YEAR(tanggal)='$tahun'
-    "));
+    ");
 
-    return $result['total'] ?? 0;
+    return $result[0]['total'] ?? 0;
 }
 
-// ================== ARUS KAS BULAN INI ==================
-function arusKasBulanIni()
+// ================== TOTAL SALDO ==================
+function totalsaldo()
 {
     $masuk  = kasMasukBulanIni();
     $keluar = kasKeluarBulanIni();
@@ -72,81 +83,64 @@ function arusKasBulanIni()
 // ================== RINGKASAN KAS MASUK ==================
 function ringkasanKasMasuk()
 {
-    global $db;
-
-    // total kas masuk
-    $masuk = mysqli_fetch_assoc(mysqli_query($db, "
-        SELECT SUM(jumlah) as total FROM transaksi WHERE jenis='masuk'
-    "));
-
-    // total kas keluar
-    $keluar = mysqli_fetch_assoc(mysqli_query($db, "
-        SELECT SUM(jumlah) as total FROM transaksi WHERE jenis='keluar'
-    "));
+    $masuk = query("SELECT SUM(jumlah) as total FROM transaksi WHERE jenis='masuk'");
+    $keluar = query("SELECT SUM(jumlah) as total FROM transaksi WHERE jenis='keluar'");
 
     return [
-        'totalKasMasuk' => $masuk['total'] ?? 0,
-        'saldo' => ($masuk['total'] ?? 0) - ($keluar['total'] ?? 0)
+        'totalKasMasuk' => $masuk[0]['total'] ?? 0,
+        'saldo' => ($masuk[0]['total'] ?? 0) - ($keluar[0]['total'] ?? 0)
     ];
 }
 
 // ================== RINGKASAN KAS KELUAR ==================
 function ringkasanKasKeluar()
 {
-    global $db; // ⬅️ PERBAIKI DI SINI
-
     $bulanIni = date('m');
     $tahunIni = date('Y');
 
-    // Total kas keluar semua waktu
-    $totalKeluar = mysqli_fetch_assoc(mysqli_query($db, "
+    $totalKeluar = query("
         SELECT SUM(jumlah) as total 
         FROM transaksi 
         WHERE jenis='keluar'
-    "))['total'] ?? 0;
+    ");
 
-    // Total kas keluar bulan ini
-    $keluarBulanIni = mysqli_fetch_assoc(mysqli_query($db, "
+    $keluarBulanIni = query("
         SELECT SUM(jumlah) as total 
         FROM transaksi 
         WHERE jenis='keluar' 
         AND MONTH(tanggal)='$bulanIni' 
         AND YEAR(tanggal)='$tahunIni'
-    "))['total'] ?? 0;
+    ");
 
-    // Jumlah transaksi keluar
-    $jumlahTransaksi = mysqli_fetch_assoc(mysqli_query($db, "
+    $jumlahTransaksi = query("
         SELECT COUNT(*) as total 
         FROM transaksi 
         WHERE jenis='keluar'
-    "))['total'] ?? 0;
+    ");
 
-    // Total kas masuk
-    $totalMasuk = mysqli_fetch_assoc(mysqli_query($db, "
+    $totalMasuk = query("
         SELECT SUM(jumlah) as total 
         FROM transaksi 
         WHERE jenis='masuk'
-    "))['total'] ?? 0;
+    ");
 
-    $saldo = $totalMasuk - $totalKeluar;
+    $saldo = ($totalMasuk[0]['total'] ?? 0) - ($totalKeluar[0]['total'] ?? 0);
 
     return [
-        "totalKeluar"     => $totalKeluar,
-        "keluarBulanIni"  => $keluarBulanIni,
-        "jumlahTransaksi" => $jumlahTransaksi,
+        "totalKeluar"     => $totalKeluar[0]['total'] ?? 0,
+        "keluarBulanIni"  => $keluarBulanIni[0]['total'] ?? 0,
+        "jumlahTransaksi" => $jumlahTransaksi[0]['total'] ?? 0,
         "saldo"           => $saldo
     ];
 }
 
-// ================== HITUNG SISWA LUNAS, BELUM LUNAS, DAN SEBAGIAN BAYAR ==================
+// ================== STATUS BAYAR ==================
 function ringkasanStatusBayar($kas_wajib)
 {
-    global $db;
-
     $bulan = date('m');
     $tahun = date('Y');
 
-    $result = mysqli_query($db, "
+    $result = query("
         SELECT murid.nisn,
                IFNULL(SUM(transaksi.jumlah),0) as total
         FROM murid
@@ -162,8 +156,7 @@ function ringkasanStatusBayar($kas_wajib)
     $belum = 0;
     $sebagian = 0;
 
-    while ($row = mysqli_fetch_assoc($result)) {
-
+    foreach ($result as $row) {
         if ($row['total'] == 0) {
             $belum++;
         } elseif ($row['total'] < $kas_wajib) {
@@ -180,13 +173,13 @@ function ringkasanStatusBayar($kas_wajib)
     ];
 }
 
-// ================== SEARCH MURID BERDASARKAN NAMA ==================
+// ================== SEARCH MURID ==================
 function searchMurid($search = '')
 {
     global $db;
-    
+
     $search = mysqli_real_escape_string($db, $search);
-    
+
     $q = "
         SELECT murid.nisn, murid.nama,
                IFNULL(SUM(transaksi.jumlah), 0) AS total
@@ -199,6 +192,6 @@ function searchMurid($search = '')
         GROUP BY murid.nisn
         ORDER BY murid.nama ASC
     ";
-    
+
     return query($q);
 }

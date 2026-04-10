@@ -3,13 +3,12 @@ session_start();
 include 'config/app.php';
 
 // CEK KOLOM KATEGORI
-$hasKategoriColumn = mysqli_num_rows(query("SHOW COLUMNS FROM transaksi LIKE 'id_kategori'")) > 0;
+$cekKolom = query("SHOW COLUMNS FROM transaksi LIKE 'id_kategori'");
+$hasKategoriColumn = !empty($cekKolom);
 $kategori = $hasKategoriColumn ? query("SELECT * FROM kategori") : [];
 
 // TAMBAH
 if (isset($_POST['simpan'])) {
-    $jumlah = (int)$_POST['jumlah'];
-
     if ($jumlah > 0 && $jumlah <= getSaldo()) {
 
         $columns = "tanggal, jenis, jumlah, keterangan";
@@ -22,10 +21,13 @@ if (isset($_POST['simpan'])) {
         }
 
         query("INSERT INTO transaksi ($columns) VALUES ($values)");
-    }
 
-    header("Location: kaskeluar.php");
-    exit;
+        header("Location: kaskeluar.php?success=tambah");
+        exit;
+    } else {
+        header("Location: kaskeluar.php?error=saldo");
+        exit;
+    }
 }
 
 // UPDATE
@@ -46,7 +48,7 @@ if (isset($_POST['update'])) {
         query($sql);
     }
 
-    header("Location: kaskeluar.php");
+    header("Location: kaskeluar.php?success=update");
     exit;
 }
 
@@ -54,7 +56,7 @@ if (isset($_POST['update'])) {
 if (isset($_GET['hapus'])) {
     $id = (int)$_GET['hapus'];
     query("DELETE FROM transaksi WHERE id_transaksi='$id'");
-    header("Location: kaskeluar.php");
+    header("Location: kaskeluar.php?success=delete");
     exit;
 }
 
@@ -91,11 +93,13 @@ if ($hasKategoriColumn) {
         ORDER BY t.tanggal DESC
     ");
 } else {
-    $kasKeluar = mysqli_query($db, "
-        SELECT * FROM transaksi 
-        WHERE jenis='keluar'
-        ORDER BY tanggal DESC
-    ");
+    $kasKeluar = query("
+    SELECT t.*, k.nama as kategori 
+    FROM transaksi t
+    LEFT JOIN kategori k ON t.id_kategori = k.id_kategori
+    WHERE $where 
+    ORDER BY t.tanggal DESC
+");
 }
 
 // RINGKASAN
@@ -225,6 +229,47 @@ $keluar = ringkasanKasKeluar();
                 Tambah Kas Keluar
             </button>
 
+            <?php if (isset($_GET['success'])): ?>
+                <div class="alert alert-success alert-dismissible fade show" role="alert" id="successAlert">
+                    <?php
+                    if ($_GET['success'] == 'tambah') echo 'Kas keluar berhasil ditambahkan!';
+                    if ($_GET['success'] == 'update') echo 'Kas keluar berhasil diupdate!';
+                    if ($_GET['success'] == 'delete') echo 'Kas keluar berhasil dihapus!';
+                    // 
+                    ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                <script>
+                    // Auto dismiss alert setelah 3 detik
+                    setTimeout(() => {
+                        const alert = document.getElementById('successAlert');
+                        if (alert) {
+                            const bsAlert = new bootstrap.Alert(alert);
+                            bsAlert.close();
+                        }
+                    }, 3000);
+                </script>
+            <?php endif; ?>
+
+            <?php if (isset($_GET['error'])): ?>
+                <div class="alert alert-danger alert-dismissible fade show" role="alert" id="errorAlert">
+                    <?php
+                    if ($_GET['error'] == 'saldo') echo 'Saldo tidak cukup untuk melakukan transaksi!';
+                    ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+
+                <script>
+                    setTimeout(() => {
+                        const alert = document.getElementById('errorAlert');
+                        if (alert) {
+                            const bsAlert = new bootstrap.Alert(alert);
+                            bsAlert.close();
+                        }
+                    }, 3000);
+                </script>
+            <?php endif; ?>
+
             <!-- FILTER -->
             <form method="GET" class="row g-2 mb-2 mt-3">
 
@@ -276,7 +321,7 @@ $keluar = ringkasanKasKeluar();
                                 <th>Aksi</th>
                             </tr>
                         </thead>
-                        <?php while ($row = mysqli_fetch_assoc($kasKeluar)): ?>
+                       <?php foreach ($kasKeluar as $row): ?>
                             <tr>
                                 <td><?= htmlspecialchars($row['tanggal']) ?></td>
                                 <td>Rp <?= number_format($row['jumlah']) ?></td>
@@ -292,7 +337,7 @@ $keluar = ringkasanKasKeluar();
                                     </a>
                                 </td>
                             </tr>
-                        <?php endwhile; ?>
+                        <?php endforeach; ?>
                     </table>
                     </table>
                 </div>

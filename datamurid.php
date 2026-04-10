@@ -129,7 +129,7 @@ $totalMurid = mysqli_fetch_assoc(query("SELECT COUNT(*) as total FROM murid"))['
 
             <ul class="nav flex-column gap-2">
                 <li><a class="nav-link" href="dashboard.php"><i class="fas fa-home"></i> Dashboard</a></li>
-                
+
                 <?php if ($_SESSION['role'] == 'wali kelas'): ?>
                     <li><a class="nav-link" href="datamurid.php"><i class="fas fa-users"></i> Data Murid</a></li>
                 <?php endif; ?>
@@ -167,6 +167,28 @@ $totalMurid = mysqli_fetch_assoc(query("SELECT COUNT(*) as total FROM murid"))['
             <button class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#modalTambah">
                 Tambah Murid
             </button>
+
+            <?php if (isset($_GET['success'])): ?>
+                <div class="alert alert-success alert-dismissible fade show" role="alert" id="successAlert">
+                    <?php
+                    if ($_GET['success'] == 'tambah') echo 'Kas masuk berhasil ditambahkan!';
+                    if ($_GET['success'] == 'update') echo 'Kas masuk berhasil diupdate!';
+                    if ($_GET['success'] == 'delete') echo 'Kas masuk berhasil dihapus!';
+                    // 
+                    ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                <script>
+                    // Auto dismiss alert setelah 3 detik
+                    setTimeout(() => {
+                        const alert = document.getElementById('successAlert');
+                        if (alert) {
+                            const bsAlert = new bootstrap.Alert(alert);
+                            bsAlert.close();
+                        }
+                    }, 3000);
+                </script>
+            <?php endif; ?>
 
             <!-- FILTER -->
             <form method="GET" class="row g-2 mb-2 mt-3 align-items-end">

@@ -3,7 +3,8 @@ session_start();
 
 // Ambil data murid dan kategori
 $murid = query("SELECT * FROM murid");
-$hasKategoriColumn = mysqli_num_rows(query("SHOW COLUMNS FROM transaksi LIKE 'id_kategori'")) > 0;
+$cekKolom = query("SHOW COLUMNS FROM transaksi LIKE 'id_kategori'");
+$hasKategoriColumn = !empty($cekKolom);
 
 $kategori = [];
 
