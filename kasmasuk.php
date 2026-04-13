@@ -14,17 +14,39 @@ if ($hasKategoriColumn) {
 
 // ================= TAMBAH =================
 if (isset($_POST['simpan'])) {
-
     $nisn = (int)$_POST['nisn'];
-    $jumlah   = (int)$_POST['jumlah'];
+    $jumlah_baru = (int)$_POST['jumlah'];
+    $kas_wajib = 240000; // Tentukan nominal kas wajib di sini
 
-    $columns = 'nisn, tanggal, jenis, jumlah, keterangan, id_kategori';
-    $values  = "'$nisn', NOW(), 'masuk', '$jumlah', 'Kas Masuk', '2'";
+    // 1. Cek total yang sudah dibayar siswa tersebut di bulan ini
+    $bulan = date('m');
+    $tahun = date('Y');
 
-    query("INSERT INTO transaksi ($columns) VALUES ($values)");
+    $cekBayar = query("SELECT SUM(jumlah) as total FROM transaksi 
+                       WHERE nisn = '$nisn' 
+                       AND jenis = 'masuk' 
+                       AND MONTH(tanggal) = '$bulan' 
+                       AND YEAR(tanggal) = '$tahun'")[0]['total'] ?? 0;
 
-    header("Location: kasmasuk.php?success=tambah");
-    exit;
+    // 2. Logika Validasi
+    if ($cekBayar >= $kas_wajib) {
+        // Jika sudah lunas atau lebih
+        header("Location: kasmasuk.php?error=sudah_lunas");
+        exit;
+    } elseif (($cekBayar + $jumlah_baru) > $kas_wajib) {
+        // Jika pembayaran baru mengakibatkan total melebihi batas
+        $sisa_tagihan = $kas_wajib - $cekBayar;
+        header("Location: kasmasuk.php?error=melebihi_batas&sisa=$sisa_tagihan");
+        exit;
+    } else {
+        // Jika valid, lakukan simpan
+        $columns = 'nisn, tanggal, jenis, jumlah, keterangan, id_kategori';
+        $values  = "'$nisn', NOW(), 'masuk', '$jumlah_baru', 'Kas Masuk', '2'";
+        query("INSERT INTO transaksi ($columns) VALUES ($values)");
+
+        header("Location: kasmasuk.php?success=tambah");
+        exit;
+    }
 }
 
 // ================= UPDATE =================
@@ -219,6 +241,21 @@ $ringkasan = ringkasanKasMasuk();
                         }
                     }, 3000);
                 </script>
+            <?php endif; ?>
+
+            <?php if (isset($_GET['error'])): ?>
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <?php
+                    if ($_GET['error'] == 'sudah_lunas') {
+                        echo '<strong>Gagal!</strong> Siswa tersebut sudah melunasi kas untuk semester ini.';
+                    }
+                    if ($_GET['error'] == 'melebihi_batas') {
+                        $sisa = number_format($_GET['sisa']);
+                        echo "<strong>Gagal!</strong> Jumlah pembayaran melebihi batas. Sisa tagihan semester ini hanya Rp $sisa.";
+                    }
+                    ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
             <?php endif; ?>
 
             <!-- FILTER -->

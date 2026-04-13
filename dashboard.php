@@ -9,7 +9,15 @@ include 'config/app.php';
 $masukBulanIni = kasMasukBulanIni();
 $keluarBulanIni = kasKeluarBulanIni();
 $totalsaldo = totalsaldo();
+// QUERY AKTIVITAS TERBARU
+$historiMasuk = query("SELECT t.*, m.nama FROM transaksi t 
+                       JOIN murid m ON t.nisn = m.nisn 
+                       WHERE t.jenis='masuk' 
+                       ORDER BY t.tanggal DESC LIMIT 5");
 
+$historiKeluar = query("SELECT * FROM transaksi 
+                        WHERE jenis='keluar' 
+                        ORDER BY tanggal DESC LIMIT 5");
 
 $target_kas = 240000; // semester
 
@@ -146,30 +154,22 @@ $q = query("
 
             <h4 class="mb-4">Selamat Datang, <?= $_SESSION['username']; ?> </h4>
 
-            <!-- SALDO
-            <div class="card mt-3 shadow-sm">
-                <div class="card-body">
-                    <h5>Total Saldo Kas</h5>
-                    <h3>Rp <?= number_format(getSaldo()); ?></h3>
-                </div>
-            </div> -->
-
             <!-- RINGKASAN -->
             <div class="row mt-4 g-3 text-center">
 
                 <div class="col-md-3">
                     <div class="card summary-card">
                         <div class="card-body">
-                            <h6>Saldo Kas</h6>
+                            <h6 class="text-success">Saldo Kas</h6>
                             <h5>Rp <?= number_format($totalsaldo); ?></h5>
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="col-md-3">
                     <div class="card summary-card">
                         <div class="card-body">
-                            <h6>Kas Masuk</h6>
+                            <h6 class="text-primary">Kas Masuk</h6>
                             <h5>Rp <?= number_format($masukBulanIni); ?></h5>
                         </div>
                     </div>
@@ -178,23 +178,98 @@ $q = query("
                 <div class="col-md-3">
                     <div class="card summary-card">
                         <div class="card-body">
-                            <h6>Kas Keluar</h6>
+                            <h6 class="text-danger">Kas Keluar</h6>
                             <h5>Rp <?= number_format($keluarBulanIni); ?></h5>
                         </div>
                     </div>
                 </div>
 
-
-
                 <div class="col-md-3">
                     <div class="card summary-card">
                         <div class="card-body">
-                            <h6>Total Siswa</h6>
+                            <h6 class="text-info">Total Siswa</h6>
                             <h5><?= dataSiswa(); ?></h5>
                         </div>
                     </div>
                 </div>
+            </div>
 
+            <!-- AKTIVITAS RIWAYAT KAS MASUK -->
+            <div class="row mt-4 g-3">
+                <div class="col-md-6">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="fw-bold"><i class="fas fa-history text-success"></i> Riwayat Kas Masuk</h6>
+                                <a href="kasmasuk.php" class="btn btn-sm btn-outline-primary">Lihat Semua</a>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover table-borderless align-middle">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Siswa</th>
+                                            <th>Jumlah</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php if (empty($historiMasuk)): ?>
+                                            <tr>
+                                                <td colspan="2" class="text-center text-muted small">Belum ada data</td>
+                                            </tr>
+                                        <?php endif; ?>
+                                        <?php foreach ($historiMasuk as $hm): ?>
+                                            <tr>
+                                                <td>
+                                                    <div class="fw-bold small"><?= htmlspecialchars($hm['nama']) ?></div>
+                                                    <small class="text-muted"><?= date('d/m/Y', strtotime($hm['tanggal'])) ?></small>
+                                                </td>
+                                                <td class="text-success fw-bold small">+Rp <?= number_format($hm['jumlah']) ?></td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AKTIVITAS RIWAYAT KAS KELUAR -->
+                <div class="col-md-6">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="fw-bold"><i class="fas fa-history text-danger"></i> Riwayat Kas Keluar</h6>
+                                <a href="kaskeluar.php" class="btn btn-sm btn-outline-primary">Lihat Semua</a>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover table-borderless align-middle">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Keterangan</th>
+                                            <th>Jumlah</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php if (empty($historiKeluar)): ?>
+                                            <tr>
+                                                <td colspan="2" class="text-center text-muted small">Belum ada data</td>
+                                            </tr>
+                                        <?php endif; ?>
+                                        <?php foreach ($historiKeluar as $hk): ?>
+                                            <tr>
+                                                <td>
+                                                    <div class="fw-bold small"><?= htmlspecialchars($hk['keterangan']) ?></div>
+                                                    <small class="text-muted"><?= date('d/m/Y', strtotime($hk['tanggal'])) ?></small>
+                                                </td>
+                                                <td class="text-danger fw-bold small">-Rp <?= number_format($hk['jumlah']) ?></td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- STATUS PEMBAYARAN -->

@@ -38,7 +38,7 @@ $where = [];
 
 if ($search) {
     $s = mysqli_real_escape_string($GLOBALS['db'], $search);
-    $where[] = "nama LIKE '%$s%'";
+    $where[] = "(nama LIKE '%$s%' OR nisn LIKE '%$s%')";
 }
 
 
@@ -49,7 +49,8 @@ $data = query("SELECT * FROM murid $whereSql ORDER BY nisn ASC");
 $no = 1;
 
 // RINGKASAN
-$totalMurid = mysqli_fetch_assoc(query("SELECT COUNT(*) as total FROM murid"))['total'];
+$result = query("SELECT COUNT(*) as total FROM murid");
+$totalMurid = $result[0]['total'];
 ?>
 
 <!doctype html>
@@ -194,7 +195,7 @@ $totalMurid = mysqli_fetch_assoc(query("SELECT COUNT(*) as total FROM murid"))['
             <form method="GET" class="row g-2 mb-2 mt-3 align-items-end">
 
                 <div class="col-md-5">
-                    <label>Cari Nama Siswa</label>
+                    <label>Cari Nama/NISN Siswa</label>
                     <input type="text" name="search" class="form-control" value="<?= $search ?>">
                 </div>
 
@@ -218,7 +219,7 @@ $totalMurid = mysqli_fetch_assoc(query("SELECT COUNT(*) as total FROM murid"))['
                         </thead>
 
                         <tbody>
-                            <?php while ($m = mysqli_fetch_assoc($data)): ?>
+                            <?php foreach ($data as $m): ?>
                                 <tr>
                                     <td><?= $m['nisn'] ?></td>
                                     <td><?= $m['nama'] ?></td>
@@ -232,7 +233,7 @@ $totalMurid = mysqli_fetch_assoc(query("SELECT COUNT(*) as total FROM murid"))['
                                         </a>
                                     </td>
                                 </tr>
-                            <?php endwhile; ?>
+                            <?php endforeach; ?>
                         </tbody>
                     </table>
                 </div>
@@ -269,7 +270,7 @@ $totalMurid = mysqli_fetch_assoc(query("SELECT COUNT(*) as total FROM murid"))['
     <!-- 🔥 MODAL EDIT FIX -->
     <?php
     $dataModal = query("SELECT * FROM murid ORDER BY nisn DESC");
-    while ($m = mysqli_fetch_assoc($dataModal)):
+    foreach ($dataModal as $m):
     ?>
         <div class="modal fade" id="edit<?= $m['nisn'] ?>">
             <div class="modal-dialog modal-dialog-centered">
@@ -294,7 +295,7 @@ $totalMurid = mysqli_fetch_assoc(query("SELECT COUNT(*) as total FROM murid"))['
                 </form>
             </div>
         </div>
-    <?php endwhile; ?>
+    <?php endforeach; ?>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
