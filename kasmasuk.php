@@ -5,8 +5,8 @@ session_start();
 $murid = query("SELECT * FROM murid");
 $cekKolom = query("SHOW COLUMNS FROM transaksi LIKE 'id_kategori'");
 $hasKategoriColumn = !empty($cekKolom);
-
 $kategori = [];
+$ringkasan = ringkasanKasMasuk();
 
 if ($hasKategoriColumn) {
     $kategori = query("SELECT id_kategori, nama FROM kategori");
@@ -16,9 +16,8 @@ if ($hasKategoriColumn) {
 if (isset($_POST['simpan'])) {
     $nisn = (int)$_POST['nisn'];
     $jumlah_baru = (int)$_POST['jumlah'];
-    $kas_wajib = 240000; // Tentukan nominal kas wajib di sini
+    $kas_wajib = 20000;
 
-    // 1. Cek total yang sudah dibayar siswa tersebut di bulan ini
     $bulan = date('m');
     $tahun = date('Y');
 
@@ -26,27 +25,28 @@ if (isset($_POST['simpan'])) {
                        WHERE nisn = '$nisn' 
                        AND jenis = 'masuk' 
                        AND MONTH(tanggal) = '$bulan' 
-                       AND YEAR(tanggal) = '$tahun'")[0]['total'] ?? 0;
+                       AND YEAR(tanggal) = '$tahun'");
 
-    // 2. Logika Validasi
-    if ($cekBayar >= $kas_wajib) {
-        // Jika sudah lunas atau lebih
+    $totalBayar = $cekBayar[0]['total'] ?? 0;
+
+    // VALIDASI
+    if ($totalBayar >= $kas_wajib) {
         header("Location: kasmasuk.php?error=sudah_lunas");
         exit;
-    } elseif (($cekBayar + $jumlah_baru) > $kas_wajib) {
-        // Jika pembayaran baru mengakibatkan total melebihi batas
-        $sisa_tagihan = $kas_wajib - $cekBayar;
-        header("Location: kasmasuk.php?error=melebihi_batas&sisa=$sisa_tagihan");
-        exit;
-    } else {
-        // Jika valid, lakukan simpan
-        $columns = 'nisn, tanggal, jenis, jumlah, keterangan, id_kategori';
-        $values  = "'$nisn', NOW(), 'masuk', '$jumlah_baru', 'Kas Masuk', '2'";
-        query("INSERT INTO transaksi ($columns) VALUES ($values)");
+    }
 
-        header("Location: kasmasuk.php?success=tambah");
+    if (($totalBayar + $jumlah_baru) > $kas_wajib) {
+        $sisa = $kas_wajib - $totalBayar;
+        header("Location: kasmasuk.php?error=melebihi_batas&sisa=$sisa");
         exit;
     }
+
+    // ✅ INI YANG KAMU LUPA
+    query("INSERT INTO transaksi (nisn, tanggal, jenis, jumlah, keterangan, id_kategori)
+           VALUES ('$nisn', NOW(), 'masuk', '$jumlah_baru', 'Kas Masuk', '2')");
+
+    header("Location: kasmasuk.php?success=tambah");
+    exit;
 }
 
 // ================= UPDATE =================
@@ -78,15 +78,22 @@ if (isset($_GET['hapus'])) {
 $search = isset($_GET['search']) ? $_GET['search'] : '';
 $tanggal = $_GET['tanggal'] ?? '';
 
-$where = "transaksi.jenis = 'masuk'";
+$bulan = date('m');
+$tahun = date('Y');
+
+$where = "transaksi.jenis = 'masuk' 
+          AND MONTH(transaksi.tanggal) = '$bulan'
+          AND YEAR(transaksi.tanggal) = '$tahun'";
 
 if ($search) {
     $search = mysqli_real_escape_string($GLOBALS['db'], $search);
     $where .= " AND murid.nama LIKE '%$search%'";
 }
 
+// kalau pilih tanggal manual → override
 if ($tanggal) {
-    $where .= " AND DATE(transaksi.tanggal) = '$tanggal'";
+    $where = "transaksi.jenis = 'masuk' 
+              AND DATE(transaksi.tanggal) = '$tanggal'";
 }
 
 // ================= DATA =================
@@ -95,9 +102,6 @@ $data = query("SELECT transaksi.*, murid.nama
     JOIN murid ON transaksi.nisn = murid.nisn
     WHERE $where 
     ORDER BY transaksi.tanggal DESC");
-
-// ================= RINGKASAN =================
-$ringkasan = ringkasanKasMasuk();
 ?>
 
 <!doctype html>
@@ -107,8 +111,9 @@ $ringkasan = ringkasanKasMasuk();
     <meta charset="utf-8">
     <title>Kas Masuk</title>
 
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 
     <style>
         body {
@@ -204,15 +209,29 @@ $ringkasan = ringkasanKasMasuk();
             <div class="row mb-3">
                 <div class="col-md-6">
                     <div class="card p-3">
-                        <h6>Total Kas Masuk</h6>
-                        <h4 class="text-primary">Rp <?= number_format($ringkasan['totalKasMasuk']) ?></h4>
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <h6>Total Kas Masuk</h6>
+                                <h4 class="text-primary">
+                                    Rp <?= number_format($ringkasan['totalKasMasuk']) ?>
+                                </h4>
+                            </div>
+                            <i class="bi bi-arrow-down-circle fs-1 text-primary"></i>
+                        </div>
                     </div>
                 </div>
 
                 <div class="col-md-6">
                     <div class="card p-3">
-                        <h6>Saldo</h6>
-                        <h4 class="text-success">Rp <?= number_format($ringkasan['saldo']) ?></h4>
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <h6>Saldo</h6>
+                                <h4 class="text-success">
+                                    Rp <?= number_format($ringkasan['saldo']) ?>
+                                </h4>
+                            </div>
+                            <i class="bi bi-wallet2 fs-1 text-success"></i>
+                        </div>
                     </div>
                 </div>
             </div>

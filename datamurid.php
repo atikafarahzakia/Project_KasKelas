@@ -212,6 +212,7 @@ $totalMurid = $result[0]['total'];
                     <table class="table table-hover">
                         <thead>
                             <tr>
+                                <th>No</th>
                                 <th>Nisn</th>
                                 <th>Nama Murid</th>
                                 <th>Aksi</th>
@@ -219,15 +220,16 @@ $totalMurid = $result[0]['total'];
                         </thead>
 
                         <tbody>
+                            <?php $no = 1; ?> <!-- inisialisasi nomor -->
                             <?php foreach ($data as $m): ?>
                                 <tr>
+                                    <td><?= $no++ ?></td> <!-- nomor urut -->
                                     <td><?= $m['nisn'] ?></td>
                                     <td><?= $m['nama'] ?></td>
                                     <td>
                                         <button class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#edit<?= $m['nisn'] ?>">
                                             Edit
                                         </button>
-
                                         <a href="?hapus=<?= $m['nisn'] ?>" onclick="return confirm('hapus?')" class="btn btn-danger btn-sm">
                                             Hapus
                                         </a>
@@ -235,7 +237,6 @@ $totalMurid = $result[0]['total'];
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
-                    </table>
                 </div>
             </div>
 

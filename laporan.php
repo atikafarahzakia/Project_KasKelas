@@ -238,7 +238,7 @@ foreach ($dataChart as $d) {
             </div>
 
             <!-- CHART (SAMA POSISI) -->
-            <div class="card">
+            <!-- <div class="card">
                 <div class="card-body">
                     <h6>Grafik Kas</h6>
                     <canvas id="chartKas" height="100"></canvas>
@@ -259,7 +259,7 @@ foreach ($dataChart as $d) {
                 }]
             }
         });
-    </script>
+    </script> -->
 
 </body>
 

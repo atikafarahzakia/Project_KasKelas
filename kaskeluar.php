@@ -115,6 +115,7 @@ $keluar = ringkasanKasKeluar();
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 
     <style>
         body {
@@ -211,15 +212,29 @@ $keluar = ringkasanKasKeluar();
             <div class="row mb-3">
                 <div class="col-md-6">
                     <div class="card p-3">
-                        <h6>Total Kas Keluar</h6>
-                        <h4 class="text-danger">Rp <?= number_format($keluar['totalKeluar']) ?></h4>
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <h6>Total Kas Keluar</h6>
+                                <h4 class="text-danger">
+                                    Rp <?= number_format($keluar['totalKeluar']) ?>
+                                </h4>
+                            </div>
+                            <i class="bi bi-arrow-up-circle fs-1 text-danger"></i>
+                        </div>
                     </div>
                 </div>
 
                 <div class="col-md-6">
                     <div class="card p-3">
-                        <h6>Saldo</h6>
-                        <h4 class="text-success">Rp <?= number_format($keluar['saldo']) ?></h4>
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <h6>Saldo</h6>
+                                <h4 class="text-success">
+                                    Rp <?= number_format($keluar['saldo']) ?>
+                                </h4>
+                            </div>
+                            <i class="bi bi-wallet2 fs-1 text-success"></i>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -321,7 +336,7 @@ $keluar = ringkasanKasKeluar();
                                 <th>Aksi</th>
                             </tr>
                         </thead>
-                       <?php foreach ($kasKeluar as $row): ?>
+                        <?php foreach ($kasKeluar as $row): ?>
                             <tr>
                                 <td><?= htmlspecialchars($row['tanggal']) ?></td>
                                 <td>Rp <?= number_format($row['jumlah']) ?></td>

@@ -19,7 +19,7 @@ $historiKeluar = query("SELECT * FROM transaksi
                         WHERE jenis='keluar' 
                         ORDER BY tanggal DESC LIMIT 5");
 
-$target_kas = 240000; // semester
+$target_kas = 20000; // semester
 
 
 $search = $_GET['search'] ?? '';
@@ -33,13 +33,15 @@ if ($search) {
     $where = "WHERE murid.nama LIKE '%$search_escaped%'";
 }
 
-// QUERY UTAMA (SEMESTER)
+// QUERY UTAMA
 $q = query("
     SELECT murid.nisn, nama, IFNULL(SUM(jumlah),0) as total
     FROM murid
     LEFT JOIN transaksi 
         ON murid.nisn = transaksi.nisn
-        AND jenis='Masuk'
+        AND jenis='masuk'
+        AND MONTH(tanggal) = MONTH(CURDATE())
+        AND YEAR(tanggal) = YEAR(CURDATE())
     $where
     GROUP BY murid.nisn
     ORDER BY murid.nama ASC
@@ -61,6 +63,7 @@ $q = query("
 
     <!-- Icon -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 
     <style>
         body {
@@ -154,46 +157,60 @@ $q = query("
 
             <h4 class="mb-4">Selamat Datang, <?= $_SESSION['username']; ?> </h4>
 
+            
             <!-- RINGKASAN -->
             <div class="row mt-4 g-3 text-center">
 
                 <div class="col-md-3">
                     <div class="card summary-card">
-                        <div class="card-body">
-                            <h6 class="text-success">Saldo Kas</h6>
-                            <h5>Rp <?= number_format($totalsaldo); ?></h5>
+                        <div class="card-body d-flex align-items-center justify-content-between">
+                            <div>
+                                <h6 class="text-success">Saldo Kas</h6>
+                                <h5>Rp <?= number_format($totalsaldo); ?></h5>
+                            </div>
+                            <i class="bi bi-wallet2 fs-1 text-success"></i>
                         </div>
                     </div>
                 </div>
 
                 <div class="col-md-3">
                     <div class="card summary-card">
-                        <div class="card-body">
-                            <h6 class="text-primary">Kas Masuk</h6>
-                            <h5>Rp <?= number_format($masukBulanIni); ?></h5>
+                        <div class="card-body d-flex align-items-center justify-content-between">
+                            <div>
+                                <h6 class="text-primary">Kas Masuk</h6>
+                                <h5>Rp <?= number_format($masukBulanIni); ?></h5>
+                                
+                            </div>
+                            <i class="bi bi-arrow-down-circle fs-1 text-primary"></i>
                         </div>
                     </div>
                 </div>
 
                 <div class="col-md-3">
                     <div class="card summary-card">
-                        <div class="card-body">
-                            <h6 class="text-danger">Kas Keluar</h6>
-                            <h5>Rp <?= number_format($keluarBulanIni); ?></h5>
+                        <div class="card-body d-flex align-items-center justify-content-between">
+                            <div>
+                                <h6 class="text-danger">Kas Keluar</h6>
+                                <h5>Rp <?= number_format($keluarBulanIni); ?></h5>
+                            </div>
+                            <i class="bi bi-arrow-up-circle fs-1 text-danger"></i>
                         </div>
                     </div>
                 </div>
 
                 <div class="col-md-3">
                     <div class="card summary-card">
-                        <div class="card-body">
-                            <h6 class="text-info">Total Siswa</h6>
-                            <h5><?= dataSiswa(); ?></h5>
+                        <div class="card-body d-flex align-items-center justify-content-between">
+                            <div>
+                                <h6 class="text-info">Total Siswa</h6>
+                                <h5><?= dataSiswa(); ?></h5>
+                            </div>
+                            <i class="bi bi-people fs-1 text-info"></i>
                         </div>
                     </div>
                 </div>
             </div>
-
+            
             <!-- AKTIVITAS RIWAYAT KAS MASUK -->
             <div class="row mt-4 g-3">
                 <div class="col-md-6">

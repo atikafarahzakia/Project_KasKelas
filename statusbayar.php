@@ -2,7 +2,7 @@
 session_start();
 include 'config/app.php';
 
-$target_kas = 240000; // semester
+$target_kas = 20000; // semester
 
 $search = $_GET['search'] ?? '';
 $status_filter = $_GET['status'] ?? '';
@@ -14,13 +14,15 @@ if ($search) {
     $where = "WHERE murid.nama LIKE '%$search_escaped%'";
 }
 
-// QUERY UTAMA (SEMESTER)
+// QUERY UTAMA
 $q = query("
     SELECT murid.nisn, nama, IFNULL(SUM(jumlah),0) as total
     FROM murid
     LEFT JOIN transaksi 
         ON murid.nisn = transaksi.nisn
-        AND jenis='Masuk'
+        AND jenis='masuk'
+        AND MONTH(tanggal) = MONTH(CURDATE())
+        AND YEAR(tanggal) = YEAR(CURDATE())
     $where
     GROUP BY murid.nisn
     ORDER BY murid.nama ASC
@@ -251,7 +253,9 @@ $ringkasan = ringkasanStatusBayar($target_kas);
                                 <tr>
                                     <td><?= $m['nama']; ?>
                                         <br>
-                                        <a href=""><small>view</small></a>
+                                        <a href="view-detail.php?nisn=<?= $m['nisn'] ?>" class="text-primary text-decoration-none fw-semibold small">
+                                            Detail
+                                        </a>
                                     </td>
                                     <td>
                                         <span class="badge bg-<?= $w ?>"><?= $s ?></span>
@@ -282,7 +286,7 @@ $ringkasan = ringkasanStatusBayar($target_kas);
     </div>
 
     <!-- CHART -->
-    <script>
+    <!-- <script>
         const ctx = document.getElementById('chartKas');
 
         new Chart(ctx, {
@@ -295,7 +299,7 @@ $ringkasan = ringkasanStatusBayar($target_kas);
                 }]
             }
         });
-    </script>
+    </script> -->
 
 </body>
 
