@@ -1,49 +1,67 @@
-<?php include 'config/app.php';
+<?php
+include 'config/app.php';
 session_start();
 
-// Ambil data murid dan kategori
+// ================= AMBIL DATA =================
 $murid = query("SELECT * FROM murid");
-$cekKolom = query("SHOW COLUMNS FROM transaksi LIKE 'id_kategori'");
-$hasKategoriColumn = !empty($cekKolom);
-$kategori = [];
-$ringkasan = ringkasanKasMasuk();
 
-if ($hasKategoriColumn) {
-    $kategori = query("SELECT id_kategori, nama FROM kategori");
-}
+$ringkasan = ringkasanKasMasuk();
 
 // ================= TAMBAH =================
 if (isset($_POST['simpan'])) {
-    $nisn = (int)$_POST['nisn'];
-    $jumlah_baru = (int)$_POST['jumlah'];
-    $kas_wajib = 20000;
+    $nisn   = (int)$_POST['nisn'];
+    $tipe   = $_POST['tipe']; // bulanan / mingguan
+    $jumlah = (int)$_POST['jumlah'];
 
-    $bulan = date('m');
-    $tahun = date('Y');
+    $kas_bulanan = 20000;
+    $kas_mingguan = 5000;
 
-    $cekBayar = query("SELECT SUM(jumlah) as total FROM transaksi 
-                       WHERE nisn = '$nisn' 
-                       AND jenis = 'masuk' 
-                       AND MONTH(tanggal) = '$bulan' 
-                       AND YEAR(tanggal) = '$tahun'");
+    // ================== BULANAN ==================
+    if ($tipe == 'bulanan') {
 
-    $totalBayar = $cekBayar[0]['total'] ?? 0;
+        $jumlah_bulan = floor($jumlah / $kas_bulanan);
 
-    // VALIDASI
-    if ($totalBayar >= $kas_wajib) {
-        header("Location: kasmasuk.php?error=sudah_lunas");
-        exit;
+        for ($i = 0; $i < $jumlah_bulan; $i++) {
+
+            $tanggal = date('Y-m-d', strtotime("+$i month"));
+            $bulan   = date('m', strtotime($tanggal));
+            $tahun   = date('Y', strtotime($tanggal));
+
+            // CEK SUDAH LUNAS ATAU BELUM
+            $cek = query("SELECT SUM(jumlah) as total FROM transaksi 
+                          WHERE nisn='$nisn' 
+                          AND jenis='masuk'
+                          AND bulan='$bulan'
+                          AND tahun='$tahun'");
+
+            $total = $cek[0]['total'] ?? 0;
+
+            if ($total >= $kas_bulanan) continue;
+
+            query("INSERT INTO transaksi 
+                (nisn, tanggal, bulan, tahun, jenis, jumlah, kategori, keterangan)
+                VALUES 
+                ('$nisn', '$tanggal', '$bulan', '$tahun', 'masuk', '$kas_bulanan', 'Kas', 'Kas Bulanan')");
+        }
     }
 
-    if (($totalBayar + $jumlah_baru) > $kas_wajib) {
-        $sisa = $kas_wajib - $totalBayar;
-        header("Location: kasmasuk.php?error=melebihi_batas&sisa=$sisa");
-        exit;
-    }
+    // ================== MINGGUAN ==================
+    if ($tipe == 'mingguan') {
 
-    // ✅ INI YANG KAMU LUPA
-    query("INSERT INTO transaksi (nisn, tanggal, jenis, jumlah, keterangan, id_kategori)
-           VALUES ('$nisn', NOW(), 'masuk', '$jumlah_baru', 'Kas Masuk', '2')");
+        $jumlah_minggu = floor($jumlah / $kas_mingguan);
+
+        for ($i = 0; $i < $jumlah_minggu; $i++) {
+
+            $tanggal = date('Y-m-d', strtotime("+$i week"));
+            $bulan   = date('m', strtotime($tanggal));
+            $tahun   = date('Y', strtotime($tanggal));
+
+            query("INSERT INTO transaksi 
+                (nisn, tanggal, bulan, tahun, jenis, jumlah, kategori, keterangan)
+                VALUES 
+                ('$nisn', '$tanggal', '$bulan', '$tahun', 'masuk', '$kas_mingguan', 'Kas', 'Kas Mingguan')");
+        }
+    }
 
     header("Location: kasmasuk.php?success=tambah");
     exit;
@@ -52,15 +70,15 @@ if (isset($_POST['simpan'])) {
 // ================= UPDATE =================
 if (isset($_POST['update'])) {
 
-    $id        = (int)$_POST['id_transaksi'];
-    $nisn  = (int)$_POST['nisn'];
-    $jml       = (int)$_POST['jumlah'];
+    $id = (int)$_POST['id_transaksi'];
+    $nisn = (int)$_POST['nisn'];
+    $jumlah = (int)$_POST['jumlah'];
 
     query("UPDATE transaksi SET
-    nisn = '$nisn',
-    jumlah  = '$jml'
-    WHERE id_transaksi = '$id'
-");
+        nisn = '$nisn',
+        jumlah = '$jumlah'
+        WHERE id_transaksi = '$id'
+    ");
 
     header("Location: kasmasuk.php?success=update");
     exit;
@@ -75,32 +93,25 @@ if (isset($_GET['hapus'])) {
 }
 
 // ================= FILTER =================
-$search = isset($_GET['search']) ? $_GET['search'] : '';
+$search = $_GET['search'] ?? '';
 $tanggal = $_GET['tanggal'] ?? '';
 
-$bulan = date('m');
-$tahun = date('Y');
-
-$where = "transaksi.jenis = 'masuk' 
-          AND MONTH(transaksi.tanggal) = '$bulan'
-          AND YEAR(transaksi.tanggal) = '$tahun'";
+$where = "transaksi.jenis='masuk'";
 
 if ($search) {
     $search = mysqli_real_escape_string($GLOBALS['db'], $search);
     $where .= " AND murid.nama LIKE '%$search%'";
 }
 
-// kalau pilih tanggal manual → override
 if ($tanggal) {
-    $where = "transaksi.jenis = 'masuk' 
-              AND DATE(transaksi.tanggal) = '$tanggal'";
+    $where .= " AND DATE(transaksi.tanggal)='$tanggal'";
 }
 
 // ================= DATA =================
 $data = query("SELECT transaksi.*, murid.nama 
     FROM transaksi 
     JOIN murid ON transaksi.nisn = murid.nisn
-    WHERE $where 
+    WHERE $where
     ORDER BY transaksi.tanggal DESC");
 ?>
 
@@ -396,6 +407,7 @@ $data = query("SELECT transaksi.*, murid.nama
 
                 <div class="modal-body">
 
+                    <!-- NAMA -->
                     <div class="mb-3">
                         <label>Nama Siswa</label>
                         <select name="nisn" class="form-control" required>
@@ -408,8 +420,18 @@ $data = query("SELECT transaksi.*, murid.nama
                         </select>
                     </div>
 
+                    <!-- TIPE -->
                     <div class="mb-3">
-                        <label>Jumlah</label>
+                        <label>Tipe Pembayaran</label>
+                        <select name="tipe" class="form-control" required>
+                            <option value="bulanan">Bulanan</option>
+                            <option value="mingguan">Mingguan</option>
+                        </select>
+                    </div>
+
+                    <!-- JUMLAH -->
+                    <div class="mb-3">
+                        <label>Total Bayar</label>
                         <input type="number" name="jumlah" class="form-control" required>
                     </div>
 

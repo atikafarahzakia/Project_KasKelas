@@ -83,13 +83,13 @@ include 'config/app.php';
 
                 <li><a class="nav-link" href="dashboard.php"><i class="fas fa-home"></i> Dashboard</a></li>
 
-                
+
                 <?php if ($_SESSION['role'] == 'wali kelas'): ?>
                     <li><a class="nav-link" href="datamurid.php"><i class="fas fa-users"></i> Data Murid</a></li>
                 <?php endif; ?>
 
                 <?php if ($_SESSION['role'] == 'bendahara'): ?>
-                    
+
                     <li><a class="nav-link" href="kasmasuk.php"><i class="fas fa-arrow-down"></i> Kas Masuk</a></li>
                     <li><a class="nav-link" href="kaskeluar.php"><i class="fas fa-arrow-up"></i> Kas Keluar</a></li>
                 <?php endif; ?>
@@ -106,7 +106,7 @@ include 'config/app.php';
         </div>
 
 
-        
+
 </body>
 
 </html>

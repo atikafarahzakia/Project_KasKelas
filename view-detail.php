@@ -40,8 +40,8 @@ for ($i = 1; $i <= 12; $i++) {
     $warna = "danger";
 
     if ($total > 0 && $total < $kas_per_bulan) {
-        $status = "Bayar";
-        $warna = "primary";
+        $status = "Sebagian";
+        $warna = "warning";
     } elseif ($total >= $kas_per_bulan) {
         $status = "Lunas";
         $warna = "success";
@@ -97,6 +97,8 @@ for ($i = 1; $i <= 12; $i++) {
         .sidebar {
             width: 250px;
             min-height: 100vh;
+            flex-shrink: 0;
+            /* 🔥 ini yang bikin dia gak mengecil */
             background: linear-gradient(180deg, #0d6efd, #0b5ed7);
             color: white;
             position: sticky;
@@ -157,7 +159,6 @@ for ($i = 1; $i <= 12; $i++) {
                 <?php endif; ?>
 
                 <?php if ($_SESSION['role'] == 'bendahara'): ?>
-
                     <li><a class="nav-link" href="kasmasuk.php"><i class="fas fa-arrow-down"></i> Kas Masuk</a></li>
                     <li><a class="nav-link" href="kaskeluar.php"><i class="fas fa-arrow-up"></i> Kas Keluar</a></li>
                 <?php endif; ?>
@@ -169,8 +170,8 @@ for ($i = 1; $i <= 12; $i++) {
                 <hr>
 
                 <li><a class="nav-link text-danger" href="logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
-
             </ul>
+
         </div>
 
         <!-- MAIN -->
@@ -207,9 +208,7 @@ for ($i = 1; $i <= 12; $i++) {
                             <small><?= $b['bulan'] ?></small>
 
                             <div>
-                                <?= $b['total'] > 0
-                                    ? "Rp. " . number_format($b['total']) . " / " . number_format($kas_per_bulan)
-                                    : "-" ?>
+                                <?= "Rp. " . number_format($b['total']) . " / " . number_format($kas_per_bulan) ?>
                             </div>
 
                             <span class="badge bg-<?= $b['warna'] ?> mt-2">

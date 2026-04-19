@@ -86,9 +86,12 @@ function ringkasanKasMasuk()
     $masuk = query("SELECT SUM(jumlah) as total FROM transaksi WHERE jenis='masuk'");
     $keluar = query("SELECT SUM(jumlah) as total FROM transaksi WHERE jenis='keluar'");
 
+    $totalMasuk = $masuk[0]['total'] ?? 0;
+    $totalKeluar = $keluar[0]['total'] ?? 0;
+
     return [
-        'totalKasMasuk' => $masuk[0]['total'] ?? 0,
-        'saldo' => ($masuk[0]['total'] ?? 0) - ($keluar[0]['total'] ?? 0)
+        'totalKasMasuk' => $totalMasuk,
+        'saldo' => $totalMasuk - $totalKeluar
     ];
 }
 

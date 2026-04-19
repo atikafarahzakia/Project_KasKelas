@@ -1,109 +1,105 @@
 <?php
 session_start();
 include 'config/app.php';
+// echo "FILE JALAN";
 
-// CEK KOLOM KATEGORI
-$cekKolom = query("SHOW COLUMNS FROM transaksi LIKE 'id_kategori'");
-$hasKategoriColumn = !empty($cekKolom);
-$kategori = $hasKategoriColumn ? query("SELECT * FROM kategori") : [];
-
-// TAMBAH
+// ================= TAMBAH PENGAJUAN =================
 if (isset($_POST['simpan'])) {
-    if ($jumlah > 0 && $jumlah <= getSaldo()) {
 
-        $columns = "tanggal, jenis, jumlah, keterangan";
-        $values = "NOW(), 'keluar', '$jumlah', 'Kas Keluar'";
+    $jumlah = (int)$_POST['jumlah'];
+    $kategori = $_POST['kategori'];
+    $keterangan = $_POST['keterangan'];
 
-        if ($hasKategoriColumn && !empty($_POST['id_kategori'])) {
-            $id_kategori = (int)$_POST['id_kategori'];
-            $columns .= ", id_kategori";
-            $values .= ", '$id_kategori'";
+    // ================= UPLOAD BUKTI =================
+    $bukti = '';
+
+    if (!empty($_FILES['bukti']['name'])) {
+
+        $namaFile = $_FILES['bukti']['name'];
+        $tmp = $_FILES['bukti']['tmp_name'];
+        $size = $_FILES['bukti']['size'];
+        $error = $_FILES['bukti']['error'];
+
+        if ($error === 0) {
+
+            $ext = strtolower(pathinfo($namaFile, PATHINFO_EXTENSION));
+            $allowed = ['jpg', 'jpeg', 'png'];
+
+            if (!in_array($ext, $allowed)) {
+                header("Location: kaskeluar.php?error=format");
+                exit;
+            }
+
+            if ($size > 2000000) {
+                header("Location: kaskeluar.php?error=besar");
+                exit;
+            }
+
+            $namaBaru = uniqid() . '.' . $ext;
+
+            if (!is_dir('upload')) {
+                mkdir('upload', 0777, true);
+            }
+
+            move_uploaded_file($tmp, 'upload/' . $namaBaru);
+            $bukti = $namaBaru;
+        }
+    }
+
+    // ================= SIMPAN KE DATABASE =================
+    if ($jumlah > 0) {
+
+        $bulan = date('n');
+        $tahun = date('Y');
+
+        $sql = "INSERT INTO pengajuan 
+    (tanggal, bulan, tahun, jumlah, kategori, keterangan, bukti, status)
+    VALUES (NOW(), ?, ?, ?, ?, ?, ?, 'pending')";
+
+        // PAKAI $conn atau $db HARUS SESUAI config kamu
+        $stmt = mysqli_prepare($db, $sql);
+
+        if (!$stmt) {
+            die("Prepare gagal: " . mysqli_error($db));
         }
 
-        query("INSERT INTO transaksi ($columns) VALUES ($values)");
+        mysqli_stmt_bind_param(
+            $stmt,
+            "iiisss",
+            $bulan,
+            $tahun,
+            $jumlah,
+            $kategori,
+            $keterangan,
+            $bukti
+        );
+
+        if (!mysqli_stmt_execute($stmt)) {
+            die("Execute gagal: " . mysqli_error($db));
+        }
+
+        mysqli_stmt_close($stmt);
 
         header("Location: kaskeluar.php?success=tambah");
         exit;
-    } else {
-        header("Location: kaskeluar.php?error=saldo");
-        exit;
     }
 }
 
-// UPDATE
-if (isset($_POST['update'])) {
-    $id = (int)$_POST['id_transaksi'];
-    $jumlah = (int)$_POST['jumlah'];
-
-    if ($jumlah > 0) {
-
-        $sql = "UPDATE transaksi SET jumlah='$jumlah'";
-
-        if ($hasKategoriColumn && isset($_POST['id_kategori'])) {
-            $id_kategori = (int)$_POST['id_kategori'];
-            $sql .= ", id_kategori='$id_kategori'";
-        }
-
-        $sql .= " WHERE id_transaksi='$id'";
-        query($sql);
-    }
-
-    header("Location: kaskeluar.php?success=update");
-    exit;
-}
-
-// DELETE
-if (isset($_GET['hapus'])) {
-    $id = (int)$_GET['hapus'];
-    query("DELETE FROM transaksi WHERE id_transaksi='$id'");
-    header("Location: kaskeluar.php?success=delete");
-    exit;
-}
-
-// FILTER
-$search = $_GET['search'] ?? '';
-$tanggal = $_GET['tanggal'] ?? '';
-
-$where = "t.jenis='keluar'";
-
-if ($search) {
-    $s = mysqli_real_escape_string($db, $search);
-
-    if ($hasKategoriColumn) {
-        $where .= " AND (
-            t.jumlah LIKE '%$s%' 
-            OR k.nama LIKE '%$s%'
-        )";
-    } else {
-        $where .= " AND t.jumlah LIKE '%$s%'";
-    }
-}
-
-if ($tanggal) {
-    $where .= " AND DATE(t.tanggal) = '$tanggal'";
-}
-
-// DATA (FIX JOIN KATEGORI)
-if ($hasKategoriColumn) {
-    $kasKeluar = mysqli_query($db, "
-        SELECT t.*, k.nama as kategori 
-        FROM transaksi t
-        LEFT JOIN kategori k ON t.id_kategori = k.id_kategori
-        WHERE $where 
-        ORDER BY t.tanggal DESC
-    ");
-} else {
-    $kasKeluar = query("
-    SELECT t.*, k.nama as kategori 
-    FROM transaksi t
-    LEFT JOIN kategori k ON t.id_kategori = k.id_kategori
-    WHERE $where 
-    ORDER BY t.tanggal DESC
-");
-}
-
-// RINGKASAN
+// ambil ringkasan kas keluar
 $keluar = ringkasanKasKeluar();
+
+// ================= DATA =================
+$pengajuan = query("SELECT * FROM pengajuan ORDER BY tanggal DESC");
+
+// TAMBAHKAN INI
+$search = $_GET['search'] ?? '';
+
+$dataEnum = query("SHOW COLUMNS FROM pengajuan LIKE 'kategori'");
+$type = $dataEnum[0]['Type'];
+
+// ambil isi enum
+$type = str_replace(["enum('", "')"], '', $type);
+$kategoriList = explode("','", $type);
 ?>
 
 <!doctype html>
@@ -240,31 +236,9 @@ $keluar = ringkasanKasKeluar();
             </div>
 
             <!-- BUTTON -->
-            <button class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#modalTambahKas">
+            <button class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#modalTambah">
                 Tambah Kas Keluar
             </button>
-
-            <?php if (isset($_GET['success'])): ?>
-                <div class="alert alert-success alert-dismissible fade show" role="alert" id="successAlert">
-                    <?php
-                    if ($_GET['success'] == 'tambah') echo 'Kas keluar berhasil ditambahkan!';
-                    if ($_GET['success'] == 'update') echo 'Kas keluar berhasil diupdate!';
-                    if ($_GET['success'] == 'delete') echo 'Kas keluar berhasil dihapus!';
-                    // 
-                    ?>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-                <script>
-                    // Auto dismiss alert setelah 3 detik
-                    setTimeout(() => {
-                        const alert = document.getElementById('successAlert');
-                        if (alert) {
-                            const bsAlert = new bootstrap.Alert(alert);
-                            bsAlert.close();
-                        }
-                    }, 3000);
-                </script>
-            <?php endif; ?>
 
             <?php if (isset($_GET['error'])): ?>
                 <div class="alert alert-danger alert-dismissible fade show" role="alert" id="errorAlert">
@@ -300,11 +274,11 @@ $keluar = ringkasanKasKeluar();
                 <!-- BULAN -->
                 <div class="col-md-3">
                     <input type="date" name="tanggal" class="form-control"
-                        value="<?= $_GET['tangal'] ?? '' ?>">
+                        value="<?= $_GET['tanggal'] ?? '' ?>">
                 </div>
 
                 <!-- TAHUN -->
-                <div class="col-md-2">
+                <!-- <div class="col-md-2">
                     <select name="kategori" class="form-control">
                         <option value="">-- Pilih Kategori --</option>
                         <?php foreach ($kategori as $cat): ?>
@@ -314,7 +288,7 @@ $keluar = ringkasanKasKeluar();
                             </option>
                         <?php endforeach; ?>
                     </select>
-                </div>
+                </div> -->
 
                 <!-- BUTTON -->
                 <div class="col-md-3 d-flex align-items-end">
@@ -327,33 +301,39 @@ $keluar = ringkasanKasKeluar();
             <div class="card">
                 <div class="card-body">
 
+                    <!-- TABEL -->
                     <table class="table table-hover">
                         <thead>
                             <tr>
                                 <th>Tanggal</th>
                                 <th>Jumlah</th>
                                 <th>Kategori</th>
-                                <th>Aksi</th>
+                                <th>Status</th>
+                                <th>Bukti</th>
                             </tr>
                         </thead>
-                        <?php foreach ($kasKeluar as $row): ?>
+
+                        <?php foreach ($pengajuan as $row): ?>
                             <tr>
-                                <td><?= htmlspecialchars($row['tanggal']) ?></td>
+                                <td><?= $row['tanggal'] ?></td>
                                 <td>Rp <?= number_format($row['jumlah']) ?></td>
-                                <td><?= htmlspecialchars($row['kategori'] ?? '-') ?></td>
+                                <td><?= $row['kategori'] ?></td>
                                 <td>
-                                    <button class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#edit<?= $row['id_transaksi'] ?>">
-                                        Edit
-                                    </button>
-                                    <a href="?hapus=<?= $row['id_transaksi'] ?>"
-                                        class="btn btn-danger btn-sm"
-                                        onclick="return confirm('Yakin ingin menghapus data ini?')">
-                                        Hapus
-                                    </a>
+                                    <?php if ($row['status'] == 'pending'): ?>
+                                        <span class="badge bg-warning">Pending</span>
+                                    <?php elseif ($row['status'] == 'disetujui'): ?>
+                                        <span class="badge bg-success">Disetujui</span>
+                                    <?php else: ?>
+                                        <span class="badge bg-danger">Ditolak</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php if ($row['bukti']): ?>
+                                        <img src="upload/<?= $row['bukti'] ?>" width="60">
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
-                    </table>
                     </table>
                 </div>
             </div>
@@ -362,56 +342,53 @@ $keluar = ringkasanKasKeluar();
     </div>
 
     <!-- MODAL TAMBAH -->
-    <div class="modal fade" id="modalTambahKas">
-        <div class="modal-dialog modal-md modal-dialog-centered">
-            <div class="modal-content">
+    <div class="modal fade" id="modalTambah">
+        <div class="modal-dialog">
+            <form method="POST" enctype="multipart/form-data" class="modal-content">
 
                 <div class="modal-header">
-                    <h5 class="modal-title">Tambah Kas Keluar</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <h5>Tambah Pengajuan</h5>
                 </div>
 
-                <form method="POST">
-                    <div class="modal-body">
+                <div class="modal-body">
 
-                        <div class="mb-3">
-                            <label class="form-label">Tanggal</label>
-                            <input type="date" class="form-control" value="<?= date('Y-m-d') ?>" readonly>
-                        </div>
-
-                        <?php if ($hasKategoriColumn): ?>
-                            <div class="mb-3">
-                                <label class="form-label">Kategori</label>
-                                <select name="id_kategori" class="form-control" required>
-                                    <option value="">-- Pilih Kategori --</option>
-                                    <?php foreach ($kategori as $cat): ?>
-                                        <option value="<?= $cat['id_kategori']; ?>">
-                                            <?= htmlspecialchars($cat['nama']); ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-                        <?php endif; ?>
-
-                        <div class="mb-3">
-                            <label class="form-label">Jumlah</label>
-                            <input type="number" name="jumlah" class="form-control" required>
-                        </div>
-
+                    <div class="mb-2">
+                        <label>Jumlah</label>
+                        <input type="number" name="jumlah" class="form-control" required>
                     </div>
 
-                    <div class="modal-footer">
-                        <button type="submit" name="simpan" class="btn btn-success">Simpan</button>
+                    <div class="mb-2">
+                        <label>Kategori</label>
+                        <select name="kategori" class="form-control" required>
+                            <?php foreach ($kategoriList as $k): ?>
+                                <option value="<?= $k ?>"><?= $k ?></option>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
-                </form>
 
-            </div>
+                    <div class="mb-2">
+                        <label>Keterangan</label>
+                        <textarea name="keterangan" class="form-control"></textarea>
+                    </div>
+
+                    <div class="mb-2">
+                        <label>Bukti</label>
+                        <input type="file" name="bukti" class="form-control">
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="submit" name="simpan" class="btn btn-success">
+                        Simpan
+                    </button>
+                </div>
+
+            </form>
         </div>
     </div>
 
-    <?php mysqli_data_seek($kasKeluar, 0); // ulang loop 
-    ?>
-    <?php while ($row = mysqli_fetch_assoc($kasKeluar)): ?>
+    <?php foreach ($pengajuan as $row): ?>
 
         <div class="modal fade" id="edit<?= $row['id_transaksi'] ?>">
             <div class="modal-dialog modal-dialog-centered">
@@ -426,7 +403,7 @@ $keluar = ringkasanKasKeluar();
 
                     <div class="modal-body">
 
-                        <?php if ($hasKategoriColumn): ?>
+                        <!-- <?php if ($hasKategoriColumn): ?>
                             <div class="mb-3">
                                 <label>Kategori</label>
                                 <select name="id_kategori" class="form-control">
@@ -438,7 +415,7 @@ $keluar = ringkasanKasKeluar();
                                     <?php endforeach; ?>
                                 </select>
                             </div>
-                        <?php endif; ?>
+                        <?php endif; ?> -->
 
                         <div class="mb-3">
                             <label>Jumlah</label>
@@ -455,7 +432,7 @@ $keluar = ringkasanKasKeluar();
             </div>
         </div>
 
-    <?php endwhile; ?>
+    <?php endforeach; ?>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
