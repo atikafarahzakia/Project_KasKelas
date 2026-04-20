@@ -196,6 +196,7 @@ $data = query("SELECT transaksi.*, murid.nama
 
                 <?php if ($_SESSION['role'] == 'wali kelas'): ?>
                     <li><a class="nav-link" href="datamurid.php"><i class="fas fa-users"></i> Data Murid</a></li>
+                    <li><a class="nav-link" href="pengajuan.php"><i class="fa-solid fa-clock"></i>Pengajuan</a></li>
                 <?php endif; ?>
 
                 <?php if ($_SESSION['role'] == 'bendahara'): ?>
@@ -205,7 +206,7 @@ $data = query("SELECT transaksi.*, murid.nama
                 <?php endif; ?>
 
                 <li><a class="nav-link" href="aruskas.php"><i class="fas fa-chart-bar"></i> Arus Kas</a></li>
-                <li><a class="nav-link" href="statusbayar.php"><i class="fas fa-chart-bar"></i> Status Bayar</a></li>
+                <li><a class="nav-link" href="statusbayar.php"><i class="fa-solid fa-chart-column"></i> Status Bayar</a></li>
                 <li><a class="nav-link" href="laporan.php"><i class="fas fa-file"></i> Laporan</a></li>
 
                 <hr>
@@ -292,13 +293,13 @@ $data = query("SELECT transaksi.*, murid.nama
             <form method="GET" class="row g-2 mb-2 mt-3">
 
                 <div class="col-md-4">
-                    <label>Cari Nama Siswa</label>
+                    <label>Cari Kas Masuk</label>
                     <input type="text" name="search" class="form-control"
                         value="<?= $_GET['search'] ?? '' ?>">
                 </div>
 
                 <div class="col-md-3">
-                    <label>Bulan</label>
+                    <label>Tanggal</label>
                     <input type="date" name="tanggal" class="form-control"
                         value="<?= $_GET['tanggal'] ?? '' ?>">
                 </div>
@@ -307,8 +308,8 @@ $data = query("SELECT transaksi.*, murid.nama
                     <button class="btn btn-primary me-2">Filter</button>
                     <a href="kasmasuk.php" class="btn btn-secondary">Reset</a>
                 </div>
-
             </form>
+            
             <!-- TABLE -->
             <div class="card">
                 <div class="card-body">

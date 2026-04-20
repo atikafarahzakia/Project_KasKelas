@@ -1,7 +1,10 @@
 <?php
 session_start();
 include 'config/app.php';
-// echo "FILE JALAN";
+// // ================= CEK KONEKSI =================
+// if (!$db) {
+//     die("Koneksi database gagal: " . mysqli_connect_error());
+// }
 
 // ================= TAMBAH PENGAJUAN =================
 if (isset($_POST['simpan'])) {
@@ -10,53 +13,57 @@ if (isset($_POST['simpan'])) {
     $kategori = $_POST['kategori'];
     $keterangan = $_POST['keterangan'];
 
-    // ================= UPLOAD BUKTI =================
-    $bukti = '';
+    // VALIDASI ENUM
+    $allowedKategori = ['ATK', 'Kegiatan', 'Lainnya'];
+    if (!in_array($kategori, $allowedKategori)) {
+        die("Kategori tidak valid!");
+    }
 
-    if (!empty($_FILES['bukti']['name'])) {
+    // ================= UPLOAD BUKTI =================
+    $bukti = null;
+
+    if (isset($_FILES['bukti']) && $_FILES['bukti']['error'] === 0) {
 
         $namaFile = $_FILES['bukti']['name'];
         $tmp = $_FILES['bukti']['tmp_name'];
         $size = $_FILES['bukti']['size'];
-        $error = $_FILES['bukti']['error'];
 
-        if ($error === 0) {
+        $ext = strtolower(pathinfo($namaFile, PATHINFO_EXTENSION));
+        $allowed = ['jpg', 'jpeg', 'png'];
 
-            $ext = strtolower(pathinfo($namaFile, PATHINFO_EXTENSION));
-            $allowed = ['jpg', 'jpeg', 'png'];
-
-            if (!in_array($ext, $allowed)) {
-                header("Location: kaskeluar.php?error=format");
-                exit;
-            }
-
-            if ($size > 2000000) {
-                header("Location: kaskeluar.php?error=besar");
-                exit;
-            }
-
-            $namaBaru = uniqid() . '.' . $ext;
-
-            if (!is_dir('upload')) {
-                mkdir('upload', 0777, true);
-            }
-
-            move_uploaded_file($tmp, 'upload/' . $namaBaru);
-            $bukti = $namaBaru;
+        if (!in_array($ext, $allowed)) {
+            die("Format file harus jpg/jpeg/png");
         }
+
+        if ($size > 2000000) {
+            die("Ukuran file max 2MB");
+        }
+
+        $namaBaru = uniqid() . '.' . $ext;
+
+        if (!is_dir('upload')) {
+            mkdir('upload', 0777, true);
+        }
+
+        move_uploaded_file($tmp, 'upload/' . $namaBaru);
+        $bukti = $namaBaru;
     }
 
-    // ================= SIMPAN KE DATABASE =================
+    // ================= SIMPAN =================
     if ($jumlah > 0) {
+
+        if ($jumlah > $saldoSekarang) {
+            header("Location: kaskeluar.php?error=saldo");
+            exit;
+        }
 
         $bulan = date('n');
         $tahun = date('Y');
 
         $sql = "INSERT INTO pengajuan 
-    (tanggal, bulan, tahun, jumlah, kategori, keterangan, bukti, status)
-    VALUES (NOW(), ?, ?, ?, ?, ?, ?, 'pending')";
+        (tanggal, bulan, tahun, jumlah, kategori, keterangan, bukti, status)
+        VALUES (CURDATE(), ?, ?, ?, ?, ?, ?, 'pending')";
 
-        // PAKAI $conn atau $db HARUS SESUAI config kamu
         $stmt = mysqli_prepare($db, $sql);
 
         if (!$stmt) {
@@ -75,7 +82,7 @@ if (isset($_POST['simpan'])) {
         );
 
         if (!mysqli_stmt_execute($stmt)) {
-            die("Execute gagal: " . mysqli_error($db));
+            die("Execute gagal: " . mysqli_stmt_error($stmt));
         }
 
         mysqli_stmt_close($stmt);
@@ -85,21 +92,108 @@ if (isset($_POST['simpan'])) {
     }
 }
 
-// ambil ringkasan kas keluar
+// ================= UPDATE =================
+if (isset($_POST['update'])) {
+
+    $id = (int)$_POST['id_pengajuan'];
+    $jumlah = (int)$_POST['jumlah'];
+    $kategori = $_POST['kategori'];
+    $keterangan = $_POST['keterangan'];
+
+    // ambil data lama
+    $dataLama = query("SELECT * FROM pengajuan WHERE id_pengajuan=$id")[0];
+    $jumlahLama = $dataLama['jumlah'];
+
+    // hitung selisih (AMAN sekarang)
+    $selisih = $jumlah - $jumlahLama;
+
+    $keluar = ringkasanKasKeluar();
+    $saldoSekarang = $keluar['saldo'];
+
+    if ($selisih > 0 && $selisih > $saldoSekarang) {
+        header("Location: kaskeluar.php?error=saldo");
+        exit;
+    }
+
+    // update data
+    query("UPDATE pengajuan SET
+        jumlah='$jumlah',
+        kategori='$kategori',
+        keterangan='$keterangan'
+        WHERE id_pengajuan='$id'
+    ");
+
+    header("Location: kaskeluar.php?success=update");
+    exit;
+}
+
+// ================= HAPUS =================
+if (isset($_GET['hapus'])) {
+    $id = (int)$_GET['hapus'];
+
+    // cek status dulu
+    $data = query("SELECT status FROM pengajuan WHERE id_pengajuan=$id");
+
+    if (!$data) {
+        header("Location: kaskeluar.php");
+        exit;
+    }
+
+    if ($data[0]['status'] == 'disetujui') {
+        header("Location: kaskeluar.php?error=tidak_boleh_hapus");
+        exit;
+    }
+
+    query("DELETE FROM pengajuan WHERE id_pengajuan=$id");
+
+    header("Location: kaskeluar.php?success=delete");
+    exit;
+}
+
+// ================= RINGKASAN =================
 $keluar = ringkasanKasKeluar();
+$saldoSekarang = $keluar['saldo'];
+
+// if ($jumlah > $saldoSekarang) {
+//     header("Location: kaskeluar.php?error=saldo");
+//     exit;
+// }
 
 // ================= DATA =================
 $pengajuan = query("SELECT * FROM pengajuan ORDER BY tanggal DESC");
 
-// TAMBAHKAN INI
-$search = $_GET['search'] ?? '';
-
+// ================= ENUM =================
 $dataEnum = query("SHOW COLUMNS FROM pengajuan LIKE 'kategori'");
 $type = $dataEnum[0]['Type'];
-
-// ambil isi enum
 $type = str_replace(["enum('", "')"], '', $type);
 $kategoriList = explode("','", $type);
+
+// ================= SEARCH =================
+$search  = $_GET['search'] ?? '';
+$tanggal = $_GET['tanggal'] ?? '';
+$status  = $_GET['status'] ?? '';
+
+$where = "1=1";
+
+if ($search) {
+    $s = mysqli_real_escape_string($db, $search);
+    $where .= " AND (
+        kategori LIKE '%$s%' 
+        OR keterangan LIKE '%$s%' 
+        OR CAST(jumlah AS CHAR) LIKE '%$s%'
+    )";
+}
+
+if ($tanggal) {
+    $where .= " AND DATE(tanggal) = '$tanggal'";
+}
+
+if ($status) {
+    $s = mysqli_real_escape_string($db, $status);
+    $where .= " AND status = '$s'";
+}
+
+$pengajuan = query("SELECT * FROM pengajuan WHERE $where ORDER BY tanggal DESC");
 ?>
 
 <!doctype html>
@@ -122,7 +216,6 @@ $kategoriList = explode("','", $type);
             border-radius: 12px;
         }
 
-        /* SIDEBAR ASLI (TIDAK DIUBAH) */
         .sidebar {
             width: 250px;
             min-height: 100vh;
@@ -183,6 +276,7 @@ $kategoriList = explode("','", $type);
 
                 <?php if ($_SESSION['role'] == 'wali kelas'): ?>
                     <li><a class="nav-link" href="datamurid.php"><i class="fas fa-users"></i> Data Murid</a></li>
+                    <li><a class="nav-link" href="pengajuan.php"><i class="fa-solid fa-clock"></i>Pengajuan</a></li>
                 <?php endif; ?>
 
                 <?php if ($_SESSION['role'] == 'bendahara'): ?>
@@ -191,7 +285,7 @@ $kategoriList = explode("','", $type);
                 <?php endif; ?>
 
                 <li><a class="nav-link" href="aruskas.php"><i class="fas fa-chart-bar"></i> Arus Kas</a></li>
-                <li><a class="nav-link" href="statusbayar.php"><i class="fas fa-chart-bar"></i> Status Bayar</a></li>
+                <li><a class="nav-link" href="statusbayar.php"><i class="fa-solid fa-chart-column"></i> Status Bayar</a></li>
                 <li><a class="nav-link" href="laporan.php"><i class="fas fa-file"></i> Laporan</a></li>
 
                 <hr>
@@ -211,9 +305,7 @@ $kategoriList = explode("','", $type);
                         <div class="d-flex align-items-center justify-content-between">
                             <div>
                                 <h6>Total Kas Keluar</h6>
-                                <h4 class="text-danger">
-                                    Rp <?= number_format($keluar['totalKeluar']) ?>
-                                </h4>
+                                <h4 class="text-danger">Rp <?= number_format($keluar['totalKeluar']) ?></h4>
                             </div>
                             <i class="bi bi-arrow-up-circle fs-1 text-danger"></i>
                         </div>
@@ -225,9 +317,7 @@ $kategoriList = explode("','", $type);
                         <div class="d-flex align-items-center justify-content-between">
                             <div>
                                 <h6>Saldo</h6>
-                                <h4 class="text-success">
-                                    Rp <?= number_format($keluar['saldo']) ?>
-                                </h4>
+                                <h4 class="text-success">Rp <?= number_format($keluar['saldo']) ?></h4>
                             </div>
                             <i class="bi bi-wallet2 fs-1 text-success"></i>
                         </div>
@@ -235,15 +325,16 @@ $kategoriList = explode("','", $type);
                 </div>
             </div>
 
-            <!-- BUTTON -->
             <button class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#modalTambah">
                 Tambah Kas Keluar
             </button>
 
+            <!-- ALERT -->
             <?php if (isset($_GET['error'])): ?>
                 <div class="alert alert-danger alert-dismissible fade show" role="alert" id="errorAlert">
                     <?php
-                    if ($_GET['error'] == 'saldo') echo 'Saldo tidak cukup untuk melakukan transaksi!';
+                    if ($_GET['error'] == 'saldo') echo 'Saldo tidak cukup!';
+                    if ($_GET['error'] == 'tidak_boleh_hapus') echo 'Data yang sudah disetujui tidak boleh dihapus!';
                     ?>
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
@@ -258,37 +349,33 @@ $kategoriList = explode("','", $type);
                     }, 3000);
                 </script>
             <?php endif; ?>
-
             <!-- FILTER -->
             <form method="GET" class="row g-2 mb-2 mt-3">
 
                 <!-- SEARCH -->
                 <div class="col-md-4">
-                    <input type="text"
-                        name="search"
-                        class="form-control"
-                        placeholder="Cari jumlah / keterangan..."
+                    <label>Cari Kas Keluar</label>
+                    <input type="text" name="search" class="form-control"
                         value="<?= htmlspecialchars($search) ?>">
                 </div>
 
-                <!-- BULAN -->
+                <!-- TANGGAL -->
                 <div class="col-md-3">
+                    <label>Tanggal</label>
                     <input type="date" name="tanggal" class="form-control"
-                        value="<?= $_GET['tanggal'] ?? '' ?>">
+                        value="<?= $tanggal ?>">
                 </div>
 
-                <!-- TAHUN -->
-                <!-- <div class="col-md-2">
-                    <select name="kategori" class="form-control">
-                        <option value="">-- Pilih Kategori --</option>
-                        <?php foreach ($kategori as $cat): ?>
-                            <option value="<?= $cat['id_kategori'] ?>"
-                                <?= (($_GET['kategori'] ?? '') == $cat['id_kategori']) ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($cat['nama']) ?>
-                            </option>
-                        <?php endforeach; ?>
+                <!-- STATUS -->
+                <div class="col-md-2">
+                    <label>Status</label>
+                    <select name="status" class="form-control">
+                        <option value="">Semua Status</option>
+                        <option value="pending" <?= $status == 'pending' ? 'selected' : '' ?>>Pending</option>
+                        <option value="disetujui" <?= $status == 'disetujui' ? 'selected' : '' ?>>Disetujui</option>
+                        <option value="ditolak" <?= $status == 'ditolak' ? 'selected' : '' ?>>Ditolak</option>
                     </select>
-                </div> -->
+                </div>
 
                 <!-- BUTTON -->
                 <div class="col-md-3 d-flex align-items-end">
@@ -296,12 +383,11 @@ $kategoriList = explode("','", $type);
                     <a href="kaskeluar.php" class="btn btn-secondary">Reset</a>
                 </div>
             </form>
-
+            
             <!-- TABEL -->
             <div class="card">
                 <div class="card-body">
 
-                    <!-- TABEL -->
                     <table class="table table-hover">
                         <thead>
                             <tr>
@@ -309,7 +395,8 @@ $kategoriList = explode("','", $type);
                                 <th>Jumlah</th>
                                 <th>Kategori</th>
                                 <th>Status</th>
-                                <th>Bukti</th>
+                                <!-- <th>Bukti</th> -->
+                                <th>Aksi</th>
                             </tr>
                         </thead>
 
@@ -327,20 +414,101 @@ $kategoriList = explode("','", $type);
                                         <span class="badge bg-danger">Ditolak</span>
                                     <?php endif; ?>
                                 </td>
-                                <td>
+                                <!-- <td>
                                     <?php if ($row['bukti']): ?>
                                         <img src="upload/<?= $row['bukti'] ?>" width="60">
                                     <?php endif; ?>
+                                </td> -->
+                                <td>
+                                    <button class="btn btn-info btn-sm" data-bs-toggle="modal"
+                                        data-bs-target="#detail<?= $row['id_pengajuan'] ?>">
+                                        Detail
+                                    </button>
+                                    <button class="btn btn-warning btn-sm" data-bs-toggle="modal"
+                                        data-bs-target="#edit<?= $row['id_pengajuan'] ?>">
+                                        Edit
+                                    </button>
+                                    <a href="?hapus=<?= $row['id_pengajuan'] ?>"
+                                        class="btn btn-danger btn-sm"
+                                        onclick="return confirm('Yakin hapus?')">
+                                        Hapus
+                                    </a>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
+
                     </table>
+
                 </div>
             </div>
 
         </div>
     </div>
 
+    <!-- ================= MODAL EDIT ================= -->
+    <?php foreach ($pengajuan as $row): ?>
+        <div class="modal fade" id="edit<?= $row['id_pengajuan'] ?>">
+            <div class="modal-dialog">
+                <form method="POST" class="modal-content">
+
+                    <input type="hidden" name="id_pengajuan" value="<?= $row['id_pengajuan'] ?>">
+
+                    <div class="modal-header">
+                        <h5>Edit Pengajuan</h5>
+                    </div>
+
+                    <div class="modal-body">
+                        <input type="number" name="jumlah" value="<?= $row['jumlah'] ?>" class="form-control mb-2">
+
+                        <select name="kategori" class="form-control mb-2">
+                            <?php foreach ($kategoriList as $k): ?>
+                                <option <?= $row['kategori'] == $k ? 'selected' : '' ?>><?= $k ?></option>
+                            <?php endforeach; ?>
+                        </select>
+
+                        <textarea name="keterangan" class="form-control"><?= $row['keterangan'] ?></textarea>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button name="update" class="btn btn-warning">Update</button>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+    <?php endforeach; ?>
+
+
+    <!-- ================= MODAL DETAIL ================= -->
+    <?php foreach ($pengajuan as $row): ?>
+        <div class="modal fade" id="detail<?= $row['id_pengajuan'] ?>">
+            <div class="modal-dialog">
+                <div class="modal-content">
+
+                    <div class="modal-header">
+                        <h5>Detail Pengajuan</h5>
+                    </div>
+
+                    <div class="modal-body">
+                        <p><b>Tanggal:</b> <?= $row['tanggal'] ?></p>
+                        <p><b>Jumlah:</b> Rp <?= number_format($row['jumlah']) ?></p>
+                        <p><b>Kategori:</b> <?= $row['kategori'] ?></p>
+                        <p><b>Status:</b> <?= $row['status'] ?></p>
+
+                        <p><b>Keterangan:</b></p>
+                        <div class="border p-2">
+                            <?= nl2br($row['keterangan']) ?>
+                        </div>
+
+                        <?php if ($row['bukti']): ?>
+                            <img src="upload/<?= $row['bukti'] ?>" class="img-fluid mt-2">
+                        <?php endif; ?>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    <?php endforeach; ?>
     <!-- MODAL TAMBAH -->
     <div class="modal fade" id="modalTambah">
         <div class="modal-dialog">
@@ -379,60 +547,12 @@ $kategoriList = explode("','", $type);
                 </div>
 
                 <div class="modal-footer">
-                    <button type="submit" name="simpan" class="btn btn-success">
-                        Simpan
-                    </button>
+                    <button type="submit" name="simpan" class="btn btn-success">Simpan</button>
                 </div>
 
             </form>
         </div>
     </div>
-
-    <?php foreach ($pengajuan as $row): ?>
-
-        <div class="modal fade" id="edit<?= $row['id_transaksi'] ?>">
-            <div class="modal-dialog modal-dialog-centered">
-                <form method="POST" class="modal-content">
-
-                    <input type="hidden" name="id_transaksi" value="<?= $row['id_transaksi'] ?>">
-
-                    <div class="modal-header">
-                        <h5 class="modal-title">Edit Kas Keluar</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-
-                    <div class="modal-body">
-
-                        <!-- <?php if ($hasKategoriColumn): ?>
-                            <div class="mb-3">
-                                <label>Kategori</label>
-                                <select name="id_kategori" class="form-control">
-                                    <?php foreach ($kategori as $cat): ?>
-                                        <option value="<?= $cat['id_kategori'] ?>"
-                                            <?= $row['id_kategori'] == $cat['id_kategori'] ? 'selected' : '' ?>>
-                                            <?= htmlspecialchars($cat['nama']) ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-                        <?php endif; ?> -->
-
-                        <div class="mb-3">
-                            <label>Jumlah</label>
-                            <input type="number" name="jumlah" value="<?= $row['jumlah'] ?>" class="form-control">
-                        </div>
-
-                    </div>
-
-                    <div class="modal-footer">
-                        <button name="update" class="btn btn-warning">Update</button>
-                    </div>
-
-                </form>
-            </div>
-        </div>
-
-    <?php endforeach; ?>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 

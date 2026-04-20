@@ -24,10 +24,27 @@ function query($q)
 // ================== TAMPILKAN SALDO ==================
 function getSaldo()
 {
-    $m = query("SELECT SUM(jumlah) t FROM transaksi WHERE jenis='masuk'");
-    $k = query("SELECT SUM(jumlah) t FROM transaksi WHERE jenis='keluar'");
+    global $db;
 
-    return ($m[0]['t'] ?? 0) - ($k[0]['t'] ?? 0);
+    $masuk = query("SELECT SUM(jumlah) as total FROM transaksi WHERE jenis='masuk'");
+    $keluar = query("SELECT SUM(jumlah) as total FROM transaksi WHERE jenis='keluar'");
+
+    $m = $masuk[0]['total'] ?? 0;
+    $k = $keluar[0]['total'] ?? 0;
+
+    return $m - $k;
+}
+
+// ================== TOTAL SALDO ==================
+function totalsaldo()
+{
+    $masuk = query("SELECT SUM(jumlah) as total FROM transaksi WHERE jenis='masuk'");
+    $keluar = query("SELECT SUM(jumlah) as total FROM transaksi WHERE jenis='keluar'");
+
+    $totalMasuk = $masuk[0]['total'] ?? 0;
+    $totalKeluar = $keluar[0]['total'] ?? 0;
+
+    return $totalMasuk - $totalKeluar;
 }
 
 // ================== TAMPILKAN DATA SISWA ==================
@@ -71,14 +88,7 @@ function kasKeluarBulanIni()
     return $result[0]['total'] ?? 0;
 }
 
-// ================== TOTAL SALDO ==================
-function totalsaldo()
-{
-    $masuk  = kasMasukBulanIni();
-    $keluar = kasKeluarBulanIni();
 
-    return $masuk - $keluar;
-}
 
 // ================== RINGKASAN KAS MASUK ==================
 function ringkasanKasMasuk()

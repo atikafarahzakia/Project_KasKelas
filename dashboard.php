@@ -6,9 +6,11 @@ if (!isset($_SESSION['login']))
 include 'config/app.php';
 
 // Ringkasan
+$ringkasan = ringkasanKasMasuk();
 $masukBulanIni = kasMasukBulanIni();
 $keluarBulanIni = kasKeluarBulanIni();
 $totalsaldo = totalsaldo();
+
 // QUERY AKTIVITAS TERBARU
 $historiMasuk = query("SELECT t.*, m.nama FROM transaksi t 
                        JOIN murid m ON t.nisn = m.nisn 
@@ -19,8 +21,14 @@ $historiKeluar = query("SELECT * FROM transaksi
                         WHERE jenis='keluar' 
                         ORDER BY tanggal DESC LIMIT 5");
 
-$target_kas = 20000; // semester
+$target_kas = 7920000; // semester
 
+$kas_wajib = 20000; // sesuaikan per bulan / semester
+$statusBayar = ringkasanStatusBayar($kas_wajib);
+
+$lunas = $statusBayar['lunas'];
+$sebagian = $statusBayar['sebagian'];
+$belum = $statusBayar['belum'];
 
 $search = $_GET['search'] ?? '';
 $status_filter = $_GET['status'] ?? '';
@@ -133,9 +141,9 @@ $q = query("
             <ul class="nav flex-column gap-2">
                 <li><a class="nav-link active" href="dashboard.php"><i class="fas fa-home"></i> Dashboard</a></li>
 
-
                 <?php if ($_SESSION['role'] == 'wali kelas'): ?>
                     <li><a class="nav-link" href="datamurid.php"><i class="fas fa-users"></i> Data Murid</a></li>
+                    <li><a class="nav-link" href="pengajuan.php"><i class="fa-solid fa-clock"></i>Pengajuan</a></li>
                 <?php endif; ?>
 
                 <?php if ($_SESSION['role'] == 'bendahara'): ?>
@@ -144,7 +152,7 @@ $q = query("
                 <?php endif; ?>
 
                 <li><a class="nav-link" href="aruskas.php"><i class="fas fa-chart-bar"></i> Arus Kas</a></li>
-                <li><a class="nav-link" href="statusbayar.php"><i class="fas fa-chart-bar"></i> Status Bayar</a></li>
+                <li><a class="nav-link" href="statusbayar.php"><i class="fa-solid fa-chart-column"></i> Status Bayar</a></li>
                 <li><a class="nav-link" href="laporan.php"><i class="fas fa-file"></i> Laporan</a></li>
 
                 <hr>
@@ -157,7 +165,6 @@ $q = query("
 
             <h4 class="mb-4">Selamat Datang, <?= $_SESSION['username']; ?> </h4>
 
-            
             <!-- RINGKASAN -->
             <div class="row mt-4 g-3 text-center">
 
@@ -179,7 +186,7 @@ $q = query("
                             <div>
                                 <h6 class="text-primary">Kas Masuk</h6>
                                 <h5>Rp <?= number_format($masukBulanIni); ?></h5>
-                                
+
                             </div>
                             <i class="bi bi-arrow-down-circle fs-1 text-primary"></i>
                         </div>
@@ -210,10 +217,30 @@ $q = query("
                     </div>
                 </div>
             </div>
-            
+
+            <!-- TARGET KAS  -->
+            <?php
+            $persen = ($totalsaldo / $target_kas) * 100;
+            if ($persen > 100) $persen = 100;
+            ?>
+
+            <div class="card mt-4">
+                <div class="card-body">
+                    <h6 class="fw-bold">Progress Target Kas</h6>
+                    <p class="small text-muted">Target: Rp <?= number_format($target_kas) ?></p>
+
+                    <div class="progress">
+                        <div class="progress-bar bg-success"
+                            style="width: <?= $persen ?>%">
+                            <?= round($persen) ?>%
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- AKTIVITAS RIWAYAT KAS MASUK -->
-            <div class="row mt-4 g-3">
-                <div class="col-md-6">
+            <div class="row mt-2 g-3">
+                <!-- <div class="col-md-6">
                     <div class="card shadow-sm h-100">
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -248,10 +275,10 @@ $q = query("
                             </div>
                         </div>
                     </div>
-                </div>
+                </div> -->
 
                 <!-- AKTIVITAS RIWAYAT KAS KELUAR -->
-                <div class="col-md-6">
+                <!-- <div class="col-md-6">
                     <div class="card shadow-sm h-100">
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -286,113 +313,105 @@ $q = query("
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
+                </div> -->
 
-            <!-- STATUS PEMBAYARAN -->
-            <div class="card mt-4 shadow-sm">
-                <div class="card-body">
 
-                    <!-- HEADER -->
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5>Status Pembayaran</h5>
-                    </div>
-
-                    <!-- FILTER -->
-                    <form method="GET" class="row g-2 mb-3">
-                        <div class="col-md-4">
-                            <input type="text" name="search" class="form-control"
-                                placeholder="Cari nama..."
-                                value="<?= $search ?>">
-                        </div>
-
-                        <div class="col-md-4">
-                            <select name="status" class="form-select">
-                                <option value="">Semua</option>
-                                <option value="lunas" <?= $status_filter == 'lunas' ? 'selected' : '' ?>>Lunas</option>
-                                <option value="sebagian" <?= $status_filter == 'sebagian' ? 'selected' : '' ?>>Sebagian</option>
-                                <option value="belum_bayar" <?= $status_filter == 'belum_bayar' ? 'selected' : '' ?>>Belum Bayar</option>
-                            </select>
-                        </div>
-
-                        <div class="col-md-2 d-grid">
-                            <button class="btn btn-primary">Cari</button>
-                        </div>
-
-                        <div class="col-md-2 d-grid">
-                            <a href="dashboard.php" class="btn btn-secondary">Reset</a>
-                        </div>
-                    </form>
-
-                    <!-- TABEL -->
-                    <div class="card mb-4">
+                <div class="col-md-6">
+                    <div class="card shadow-sm h-100">
                         <div class="card-body">
-
-                            <table class="table table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>Nama</th>
-                                        <th>Status</th>
-                                        <th>Progress</th>
-                                    </tr>
-                                </thead>
-
-                                <tbody>
-                                    <?php foreach ($q as $m): ?>
-
-                                        <?php
-                                        if ($m['total'] == 0) {
-                                            $s = "Belum Bayar";
-                                            $w = "danger";
-                                        } elseif ($m['total'] < $target_kas) {
-                                            $s = "Sebagian";
-                                            $w = "warning";
-                                        } else {
-                                            $s = "Lunas";
-                                            $w = "success";
-                                        }
-
-                                        if ($status_filter == 'lunas' && $s != 'Lunas') continue;
-                                        if ($status_filter == 'sebagian' && $s != 'Sebagian') continue;
-                                        if ($status_filter == 'belum_bayar' && $s != 'Belum Bayar') continue;
-
-                                        $persen = min(100, ($m['total'] / $target_kas) * 100);
-                                        ?>
-
-                                        <tr>
-                                            <td><?= $m['nama']; ?></td>
-
-                                            <td>
-                                                <span class="badge bg-<?= $w ?>"><?= $s ?></span>
-                                            </td>
-
-                                            <td>
-                                                <div class="progress">
-                                                    <div class="progress-bar bg-<?= $w ?>"
-                                                        style="width: <?= $persen ?>%">
-                                                        <?= round($persen) ?>%
-                                                    </div>
-                                                </div>
-                                                <small>
-                                                    Rp <?= number_format($m['total']); ?> /
-                                                    Rp <?= number_format($target_kas); ?>
-                                                </small>
-                                            </td>
-                                        </tr>
-
-                                    <?php endforeach; ?>
-                                </tbody>
-
-                            </table>
-
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="fw-bold"><i class="fas fa-history"></i> Perbandingan Kas Masuk & Keluar</h6>
+                                <a href="aruskas.php" class="btn btn-outline-primary btn-sm">lihat Detail</a>
+                            </div>
+                            <div class="d-flex justify-content-center">
+                                <div class="w-30">
+                                    <canvas id="chartKasBulat"></canvas>
+                                </div>
+                            </div>
                         </div>
                     </div>
-
                 </div>
+
+                <div class="col-md-6">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="fw-bold"><i class="fas fa-history"></i> Perbandingan Status Bayar Siswa</h6>
+                                <a href="statusbayar.php" class="btn btn-outline-primary btn-sm">Lihat Detail</a>
+                            </div>
+                            <div class="d-flex justify-content-center">
+                                <div class="w-30">
+                                    <canvas id="chartStatus" style="max-width:300px; margin:auto;"></canvas>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <span class="badge bg-success">Lunas: <?= $lunas ?></span>
+                                <span class="badge bg-warning text-dark">Sebagian: <?= $sebagian ?></span>
+                                <span class="badge bg-danger">Belum: <?= $belum ?></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+                <script>
+                    // 1
+                    const ctx = document.getElementById('chartKasBulat');
+                    new Chart(ctx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['Kas Masuk', 'Kas Keluar'],
+                            datasets: [{
+                                data: [<?= $masukBulanIni ?>, <?= $keluarBulanIni ?>],
+                                backgroundColor: [
+                                    '#198754', // hijau
+                                    '#dc3545' // merah
+                                ],
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom'
+                                }
+                            }
+                        }
+                    });
+
+                    // 2
+                    const ctxStatus = document.getElementById('chartStatus');
+                    new Chart(ctxStatus, {
+                        type: 'pie',
+                        data: {
+                            labels: ['Lunas', 'Sebagian', 'Belum'],
+                            datasets: [{
+                                data: [<?= $lunas ?>, <?= $sebagian ?>, <?= $belum ?>],
+                                backgroundColor: [
+                                    '#198754', // hijau
+                                    '#ffc107', // kuning
+                                    '#dc3545' // merah
+                                ]
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom'
+                                }
+                            }
+                        }
+                    });
+                </script>
+
+
             </div>
-
         </div>
-
+    </div>
 </body>
 
 </html>

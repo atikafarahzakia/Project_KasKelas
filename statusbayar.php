@@ -135,6 +135,7 @@ $ringkasan = ringkasanStatusBayar($target_kas);
 
                 <?php if ($_SESSION['role'] == 'wali kelas'): ?>
                     <li><a class="nav-link" href="datamurid.php"><i class="fas fa-users"></i> Data Murid</a></li>
+                    <li><a class="nav-link" href="pengajuan.php"><i class="fa-solid fa-clock"></i>Pengajuan</a></li>
                 <?php endif; ?>
 
                 <?php if ($_SESSION['role'] == 'bendahara'): ?>
@@ -144,7 +145,7 @@ $ringkasan = ringkasanStatusBayar($target_kas);
                 <?php endif; ?>
 
                 <li><a class="nav-link" href="aruskas.php"><i class="fas fa-chart-bar"></i> Arus Kas</a></li>
-                <li><a class="nav-link active" href="statusbayar.php"><i class="fas fa-chart-bar"></i> Status Bayar</a></li>
+                <li><a class="nav-link active" href="statusbayar.php"><i class="fa-solid fa-chart-column"></i> Status Bayar</a></li>
                 <li><a class="nav-link" href="laporan.php"><i class="fas fa-file"></i> Laporan</a></li>
 
                 <hr>
