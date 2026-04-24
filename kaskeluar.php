@@ -9,7 +9,7 @@ $saldoSekarang = $keluar['saldo'];
 // ================= TAMBAH PENGAJUAN =================
 if (isset($_POST['simpan'])) {
 
-    $jumlah = (int)$_POST['jumlah'];
+    $jumlah = (int) str_replace('.', '', $_POST['jumlah']);
     $kategori = $_POST['kategori'];
     $keterangan = $_POST['keterangan'];
 

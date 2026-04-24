@@ -20,8 +20,10 @@ if ($bulan && $tahun) {
     $masuk = mysqli_fetch_assoc($qMasuk)['total'] ?? 0;
 
     $qKeluar = mysqli_query($db, "SELECT SUM(jumlah) as total 
-        FROM transaksi 
-        WHERE jenis='keluar' AND bulan='$bulan' AND tahun='$tahun'");
+FROM transaksi 
+WHERE jenis='keluar' 
+AND MONTH(tanggal)='$bulan' 
+AND YEAR(tanggal)='$tahun'");
     $keluar = mysqli_fetch_assoc($qKeluar)['total'] ?? 0;
 
     $saldo = $masuk - $keluar;

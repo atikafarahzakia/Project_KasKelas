@@ -2,40 +2,47 @@
 session_start();
 include 'config/app.php';
 
-$target_kas = 20000; // semester
+$target_kas = 20000;
 
+// FILTER
 $search = $_GET['search'] ?? '';
 $status_filter = $_GET['status'] ?? '';
 
-// SEARCH
-$where = "";
+// WHERE DINAMIS
+$where = "WHERE 1=1";
+
 if ($search) {
-    $search_escaped = mysqli_real_escape_string($GLOBALS['db'], $search);
-    $where = "WHERE murid.nama LIKE '%$search_escaped%'";
+    $search = mysqli_real_escape_string($GLOBALS['db'], $search);
+    $where .= " AND murid.nama LIKE '%$search%'";
 }
 
-// QUERY UTAMA
+// QUERY UTAMA (INI YANG DIPAKAI TABEL)
 $q = query("
-    SELECT murid.nisn, nama, IFNULL(SUM(jumlah),0) as total
+    SELECT 
+        murid.nisn,
+        murid.nama,
+        IFNULL(SUM(CASE 
+            WHEN transaksi.jenis='masuk' 
+            THEN transaksi.jumlah 
+            ELSE 0 
+        END),0) as total
     FROM murid
     LEFT JOIN transaksi 
         ON murid.nisn = transaksi.nisn
-        AND jenis='masuk'
-        AND MONTH(tanggal) = MONTH(CURDATE())
-        AND YEAR(tanggal) = YEAR(CURDATE())
+        AND transaksi.tahun = YEAR(CURDATE())
     $where
-    GROUP BY murid.nisn
+    GROUP BY murid.nisn, murid.nama
     ORDER BY murid.nama ASC
 ");
 
-// DATA CHART
+// CHART
 $dataChart = query("
-    SELECT nama, IFNULL(SUM(jumlah),0) as total
+    SELECT murid.nama, IFNULL(SUM(transaksi.jumlah),0) as total
     FROM murid
     LEFT JOIN transaksi 
         ON murid.nisn = transaksi.nisn
-        AND jenis='Masuk'
-    GROUP BY murid.nisn
+        AND transaksi.jenis='masuk'
+    GROUP BY murid.nisn, murid.nama
 ");
 
 $nama = [];
@@ -47,8 +54,8 @@ foreach ($dataChart as $d) {
 }
 
 $ringkasan = ringkasanStatusBayar($target_kas);
-
 ?>
+
 <!doctype html>
 <html lang="en">
 
@@ -233,10 +240,16 @@ $ringkasan = ringkasanStatusBayar($target_kas);
                             <?php foreach ($q as $m): ?>
 
                                 <?php
-                                if ($m['total'] == 0) {
+                                $total = (int)$m['total'];
+
+                                $persen = ($target_kas > 0)
+                                    ? ($total / $target_kas) * 100
+                                    : 0;
+
+                                if ($total == 0) {
                                     $s = "Belum Bayar";
                                     $w = "danger";
-                                } elseif ($m['total'] < $target_kas) {
+                                } elseif ($total < $target_kas) {
                                     $s = "Sebagian";
                                     $w = "warning";
                                 } else {
@@ -247,8 +260,6 @@ $ringkasan = ringkasanStatusBayar($target_kas);
                                 if ($status_filter == 'lunas' && $s != 'Lunas') continue;
                                 if ($status_filter == 'sebagian' && $s != 'Sebagian') continue;
                                 if ($status_filter == 'belum_bayar' && $s != 'Belum Bayar') continue;
-
-                                $persen = min(100, ($m['total'] / $target_kas) * 100);
                                 ?>
 
                                 <tr>
@@ -258,6 +269,7 @@ $ringkasan = ringkasanStatusBayar($target_kas);
                                             Detail
                                         </a>
                                     </td>
+
                                     <td>
                                         <span class="badge bg-<?= $w ?>"><?= $s ?></span>
                                     </td>
@@ -269,6 +281,7 @@ $ringkasan = ringkasanStatusBayar($target_kas);
                                                 <?= round($persen) ?>%
                                             </div>
                                         </div>
+
                                         <small>
                                             Rp <?= number_format($m['total']); ?> /
                                             Rp <?= number_format($target_kas); ?>

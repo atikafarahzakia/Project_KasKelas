@@ -11,13 +11,18 @@ if (isset($_GET['acc'])) {
     if ($data) {
         $data = $data[0];
 
-        // insert ke transaksi
-        query("INSERT INTO transaksi 
-            (tanggal, jumlah, jenis, kategori, keterangan, id_pengajuan)
-            VALUES 
-            (NOW(), '{$data['jumlah']}', 'keluar', '{$data['kategori']}', '{$data['keterangan']}', '$id')");
+        // CEK BIAR TIDAK DOUBLE INSERT
+        $cek = query("SELECT * FROM transaksi WHERE id_pengajuan=$id");
 
-        // update status
+        if (!$cek) {
+
+            query("INSERT INTO transaksi 
+            (tanggal, bulan, tahun, jenis, jumlah, kategori, keterangan, id_pengajuan)
+            VALUES 
+            (NOW(), MONTH(NOW()), YEAR(NOW()), 'keluar', 
+            '{$data['jumlah']}', '{$data['kategori']}', '{$data['keterangan']}', '$id')");
+        }
+
         query("UPDATE pengajuan SET status='disetujui' WHERE id_pengajuan=$id");
     }
 
