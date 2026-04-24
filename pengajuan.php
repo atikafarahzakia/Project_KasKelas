@@ -4,32 +4,70 @@ include 'config/app.php';
 
 // ================= ACC =================
 if (isset($_GET['acc'])) {
-    $id = $_GET['acc'];
+    $id = (int)$_GET['acc'];
 
-    $data = query("SELECT * FROM pengajuan WHERE id_pengajuan=$id")[0];
+    $data = query("SELECT * FROM pengajuan WHERE id_pengajuan=$id");
 
-    // masukkan ke transaksi
-    query("INSERT INTO transaksi 
-        (tanggal, jumlah, jenis, kategori, keterangan, id_pengajuan)
-        VALUES 
-        (NOW(), '{$data['jumlah']}', 'keluar', '{$data['kategori']}', '{$data['keterangan']}', '$id')");
+    if ($data) {
+        $data = $data[0];
 
-    // update status
-    query("UPDATE pengajuan SET status='disetujui' WHERE id_pengajuan=$id");
+        // insert ke transaksi
+        query("INSERT INTO transaksi 
+            (tanggal, jumlah, jenis, kategori, keterangan, id_pengajuan)
+            VALUES 
+            (NOW(), '{$data['jumlah']}', 'keluar', '{$data['kategori']}', '{$data['keterangan']}', '$id')");
+
+        // update status
+        query("UPDATE pengajuan SET status='disetujui' WHERE id_pengajuan=$id");
+    }
 
     header("Location: pengajuan.php");
+    exit;
 }
 
 // ================= TOLAK =================
 if (isset($_GET['tolak'])) {
-    $id = $_GET['tolak'];
+    $id = (int)$_GET['tolak'];
+
     query("UPDATE pengajuan SET status='ditolak' WHERE id_pengajuan=$id");
 
     header("Location: pengajuan.php");
+    exit;
+}
+
+// ================= FILTER =================
+$search  = $_GET['search'] ?? '';
+$tanggal = $_GET['tanggal'] ?? '';
+$status  = $_GET['status'] ?? '';
+
+$where = "1=1";
+
+if ($search) {
+    $search = mysqli_real_escape_string($GLOBALS['db'], $search);
+    $where .= " AND keterangan LIKE '%$search%'";
+}
+
+if ($tanggal) {
+    $where .= " AND DATE(tanggal) = '$tanggal'";
+}
+
+if ($status) {
+    $where .= " AND status = '$status'";
 }
 
 // ================= DATA =================
-$pengajuan = query("SELECT * FROM pengajuan ORDER BY tanggal DESC");
+$pengajuan = query("SELECT * FROM pengajuan 
+                    WHERE $where
+                    ORDER BY id_pengajuan DESC");
+
+// ================= RINGKASAN PENGAJUAN (JUMLAH DATA) =================
+$ringkasanPengajuan = query("
+    SELECT 
+        COUNT(CASE WHEN status='disetujui' THEN 1 END) as diterima,
+        COUNT(CASE WHEN status='pending' THEN 1 END) as pending,
+        COUNT(CASE WHEN status='ditolak' THEN 1 END) as ditolak
+    FROM pengajuan
+")[0];
 ?>
 
 <!doctype html>
@@ -41,7 +79,9 @@ $pengajuan = query("SELECT * FROM pengajuan ORDER BY tanggal DESC");
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 
     <style>
         body {
@@ -137,46 +177,48 @@ $pengajuan = query("SELECT * FROM pengajuan ORDER BY tanggal DESC");
         <div class="flex-fill p-4">
             <h4 class="mb-4">Pengajuan</h4>
 
-            <!-- RINGKASAN -->
             <div class="row mb-3">
-                <div class="col-md-6">
-                    <div class="card p-3">
-                        <div class="d-flex align-items-center justify-content-between">
+                <!-- DITERIMA -->
+                <div class="col-md-3">
+                    <div class="card summary-card">
+                        <div class="card-body d-flex align-items-center justify-content-between">
                             <div>
                                 <h6>Diterima</h6>
-                                <!-- <h4 class="text-primary">
-                                    Rp <?= number_format($ringkasan['totalKasMasuk']) ?>
-                                </h4> -->
+                                <h4 class="text-success">
+                                    <?= $ringkasanPengajuan['diterima'] ?? 0 ?>
+                                </h4>
                             </div>
-                            <i class="bi bi-arrow-down-circle fs-1 text-primary"></i>
+                            <i class="fa-regular fa-circle-check fs-1 text-success"></i>
                         </div>
                     </div>
                 </div>
 
-                <div class="col-md-6">
-                    <div class="card p-3">
-                        <div class="d-flex align-items-center justify-content-between">
+                <!-- PENDING -->
+                <div class="col-md-3">
+                    <div class="card summary-card">
+                        <div class="card-body d-flex align-items-center justify-content-between">
                             <div>
                                 <h6>Pending</h6>
-                                <!-- <h4 class="text-success">
-                                    Rp <?= number_format($ringkasan['saldo']) ?>
-                                </h4> -->
+                                <h4 class="text-warning">
+                                    <?= $ringkasanPengajuan['pending'] ?? 0 ?>
+                                </h4>
                             </div>
-                            <i class="bi bi-wallet2 fs-1 text-success"></i>
+                            <i class="fa-regular fa-clock fs-1 text-warning"></i>
                         </div>
                     </div>
                 </div>
 
-                <div class="col-md-6">
-                    <div class="card p-3">
-                        <div class="d-flex align-items-center justify-content-between">
+                <!-- DITOLAK -->
+                <div class="col-md-3">
+                    <div class="card card-summary">
+                        <div class="card-body d-flex align-items-center justify-content-between">
                             <div>
                                 <h6>Ditolak</h6>
-                                <!-- <h4 class="text-success">
-                                    Rp <?= number_format($ringkasan['saldo']) ?>
-                                </h4> -->
+                                <h4 class="text-danger">
+                                    <?= $ringkasanPengajuan['ditolak'] ?? 0 ?>
+                                </h4>
                             </div>
-                            <i class="bi bi-wallet2 fs-1 text-success"></i>
+                            <i class="fa-regular fa-circle-xmark fs-1 text-danger"></i>
                         </div>
                     </div>
                 </div>
@@ -243,7 +285,7 @@ $pengajuan = query("SELECT * FROM pengajuan ORDER BY tanggal DESC");
                     <table class="table table-hover">
                         <thead>
                             <tr>
-                                <!-- <th>Tanggal</th> -->
+                                <th>Tanggal</th>
                                 <th>Jumlah</th>
                                 <th>Kategori</th>
                                 <th>Status</th>
@@ -254,7 +296,8 @@ $pengajuan = query("SELECT * FROM pengajuan ORDER BY tanggal DESC");
 
                         <?php foreach ($pengajuan as $p): ?>
                             <tr>
-                                <td><?= $p['jumlah'] ?></td>
+                                <td><?= date('d M Y', strtotime($p['tanggal'])) ?></td>
+                                <td>Rp <?= number_format($p['jumlah'], 0, ',', '.') ?></td>
                                 <td><?= $p['kategori'] ?></td>
                                 <td>
                                     <?php if ($p['status'] == 'pending'): ?>
@@ -266,8 +309,8 @@ $pengajuan = query("SELECT * FROM pengajuan ORDER BY tanggal DESC");
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <button class="btn btn-info btn-sm" data-bs-toggle="modal"
-                                        data-bs-target="#detail<?= $row['id_pengajuan'] ?>">
+                                    <button class="btn btn-info btn-sm"
+                                        onclick="new bootstrap.Modal(document.getElementById('detail<?= $p['id_pengajuan'] ?>')).show()">
                                         Detail
                                     </button>
                                     <?php if ($p['status'] == 'pending'): ?>
@@ -279,11 +322,43 @@ $pengajuan = query("SELECT * FROM pengajuan ORDER BY tanggal DESC");
                         <?php endforeach; ?>
                     </table>
                 </div>
+
+                <?php foreach ($pengajuan as $p): ?>
+                    <div class="modal fade" id="detail<?= $p['id_pengajuan'] ?>" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+
+                                <div class="modal-header">
+                                    <h5>Detail Pengajuan</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+
+                                <div class="modal-body">
+                                    <p><b>Tanggal:</b> <?= $p['tanggal'] ?></p>
+                                    <p><b>Jumlah:</b> Rp <?= number_format($p['jumlah']) ?></p>
+                                    <p><b>Kategori:</b> <?= $p['kategori'] ?></p>
+                                    <p><b>Status:</b> <?= $p['status'] ?></p>
+                                    <p><b>Keterangan:</b><br><?= $p['keterangan'] ?></p>
+
+                                    <?php if (!empty($p['bukti'])): ?>
+                                        <hr>
+                                        <p><b>Bukti:</b></p>
+                                        <img src="upload/<?= $p['bukti'] ?>"
+                                            class="img-fluid rounded border"
+                                            alt="bukti">
+                                    <?php endif; ?>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+
             </div>
 
         </div>
 
-
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 
 </html>

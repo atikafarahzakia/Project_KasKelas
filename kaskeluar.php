@@ -1,10 +1,10 @@
 <?php
 session_start();
 include 'config/app.php';
-// // ================= CEK KONEKSI =================
-// if (!$db) {
-//     die("Koneksi database gagal: " . mysqli_connect_error());
-// }
+
+// ================= RINGKASAN =================
+$keluar = ringkasanKasKeluar();
+$saldoSekarang = $keluar['saldo'];
 
 // ================= TAMBAH PENGAJUAN =================
 if (isset($_POST['simpan'])) {
@@ -149,15 +149,6 @@ if (isset($_GET['hapus'])) {
     header("Location: kaskeluar.php?success=delete");
     exit;
 }
-
-// ================= RINGKASAN =================
-$keluar = ringkasanKasKeluar();
-$saldoSekarang = $keluar['saldo'];
-
-// if ($jumlah > $saldoSekarang) {
-//     header("Location: kaskeluar.php?error=saldo");
-//     exit;
-// }
 
 // ================= DATA =================
 $pengajuan = query("SELECT * FROM pengajuan ORDER BY tanggal DESC");
@@ -383,7 +374,7 @@ $pengajuan = query("SELECT * FROM pengajuan WHERE $where ORDER BY tanggal DESC")
                     <a href="kaskeluar.php" class="btn btn-secondary">Reset</a>
                 </div>
             </form>
-            
+
             <!-- TABEL -->
             <div class="card">
                 <div class="card-body">
@@ -522,7 +513,7 @@ $pengajuan = query("SELECT * FROM pengajuan WHERE $where ORDER BY tanggal DESC")
 
                     <div class="mb-2">
                         <label>Jumlah</label>
-                        <input type="number" name="jumlah" class="form-control" required>
+                        <input type="number" name="jumlah" id="jumlah" class="form-control" required>
                     </div>
 
                     <div class="mb-2">
@@ -553,6 +544,115 @@ $pengajuan = query("SELECT * FROM pengajuan WHERE $where ORDER BY tanggal DESC")
             </form>
         </div>
     </div>
+
+    <!-- TOAST NOTIFIKASI -->
+    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 9999">
+
+        <!-- SUCCESS -->
+        <div id="toastSuccess" class="toast align-items-center text-bg-success border-0" role="alert" data-bs-delay="3000">
+            <div class="d-flex">
+                <div class="toast-body">
+                    ✅ Pengajuan kas keluar berhasil ditambahkan!
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+
+        <!-- UPDATE -->
+        <div id="toastUpdate" class="toast align-items-center text-bg-warning border-0" role="alert" data-bs-delay="3000">
+            <div class="d-flex">
+                <div class="toast-body">
+                    ✏️ Data berhasil diupdate!
+                </div>
+                <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+
+        <!-- DELETE -->
+        <div id="toastDelete" class="toast align-items-center text-bg-danger border-0" role="alert" data-bs-delay="3000">
+            <div class="d-flex">
+                <div class="toast-body">
+                    🗑️ Data berhasil dihapus!
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- TOAST NOTIFIKASI -->
+    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 9999">
+
+        <!-- SUCCESS -->
+        <div id="toastSuccess" class="toast align-items-center text-bg-success border-0" role="alert" data-bs-delay="3000">
+            <div class="d-flex">
+                <div class="toast-body">
+                    ✅ Pengajuan kas keluar berhasil ditambahkan!
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+
+        <!-- UPDATE -->
+        <div id="toastUpdate" class="toast align-items-center text-bg-warning border-0" role="alert" data-bs-delay="3000">
+            <div class="d-flex">
+                <div class="toast-body">
+                    ✏️ Data berhasil diupdate!
+                </div>
+                <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+
+        <!-- DELETE -->
+        <div id="toastDelete" class="toast align-items-center text-bg-danger border-0" role="alert" data-bs-delay="3000">
+            <div class="d-flex">
+                <div class="toast-body">
+                    🗑️ Data berhasil dihapus!
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+
+    </div>
+
+
+    <?php if (isset($_GET['success'])): ?>
+        <script>
+            document.addEventListener("DOMContentLoaded", function() {
+
+                let type = "<?= $_GET['success'] ?>";
+                let toastEl;
+
+                if (type === "tambah") {
+                    toastEl = document.getElementById('toastSuccess');
+                } else if (type === "update") {
+                    toastEl = document.getElementById('toastUpdate');
+                } else if (type === "delete") {
+                    toastEl = document.getElementById('toastDelete');
+                }
+
+                if (toastEl) {
+                    const toast = new bootstrap.Toast(toastEl);
+                    toast.show();
+                }
+
+            });
+        </script>
+    <?php endif; ?>
+
+    <script>
+        const input = document.getElementById('jumlah');
+
+        input.addEventListener('input', function(e) {
+            let value = this.value.replace(/\D/g, ''); // hapus semua selain angka
+            this.value = formatRupiah(value);
+        });
+
+        function formatRupiah(angka) {
+            return angka.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        }
+    </script>
+
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 

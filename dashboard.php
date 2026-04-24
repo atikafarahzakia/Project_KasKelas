@@ -184,7 +184,7 @@ $q = query("
                     <div class="card summary-card">
                         <div class="card-body d-flex align-items-center justify-content-between">
                             <div>
-                                <h6 class="text-primary">Kas Masuk</h6>
+                                <h6 class="text-primary">Kas Masuk(error)</h6>
                                 <h5>Rp <?= number_format($masukBulanIni); ?></h5>
 
                             </div>

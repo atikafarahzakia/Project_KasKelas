@@ -4,10 +4,19 @@ include 'config/app.php';
 
 // CREATE
 if (isset($_POST['simpan'])) {
-    query("INSERT INTO murid VALUES(
-        '$_POST[nisn]',
-        '$_POST[nama]'  
-    )");
+
+    $nisn = $_POST['nisn'];
+    $nama = $_POST['nama'];
+
+    // cek duplikat
+    $cek = query("SELECT * FROM murid WHERE nisn='$nisn'");
+
+    if (count($cek) > 0) {
+        header("Location: datamurid.php?error=nisn");
+        exit;
+    }
+
+    query("INSERT INTO murid VALUES('$nisn','$nama')");
 
     header("Location: datamurid.php?success=tambah");
     exit;
@@ -70,6 +79,18 @@ $totalMurid = $result[0]['total'];
 
         .card {
             border-radius: 12px;
+        }
+
+        .modal-content {
+            border-radius: 12px;
+        }
+
+        .modal-body input {
+            width: 100% !important;
+        }
+
+        .modal-dialog {
+            max-width: 600px;
         }
 
         /* SIDEBAR ASLI (TIDAK DIUBAH) */
@@ -207,6 +228,12 @@ $totalMurid = $result[0]['total'];
 
             </form>
 
+            <?php if (isset($_GET['error']) && $_GET['error'] == 'nisn'): ?>
+                <div class="alert alert-danger">
+                    NISN sudah terdaftar!
+                </div>
+            <?php endif; ?>
+
             <!-- TABLE -->
             <div class="card">
                 <div class="card-body">
@@ -238,6 +265,7 @@ $totalMurid = $result[0]['total'];
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
+                    </table>
                 </div>
             </div>
 
@@ -245,27 +273,45 @@ $totalMurid = $result[0]['total'];
     </div>
 
     <!-- MODAL TAMBAH -->
-    <div class="modal fade" id="modalTambah">
+    <div class="modal fade" id="modalTambah" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
-            <form method="POST" class="modal-content">
+            <div class="modal-content">
 
-                <div class="modal-header">
-                    <h5 class="modal-title">Tambah Murid</h5>
-                    <button class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
+                <form method="POST">
 
-                <div class="modal-body">
-                    <label>Nisn</label>
-                    <input type="text" name="nisn" class="form-control mb-2">
-                    <label>Nama</label>
-                    <input type="text" name="nama" class="form-control">
-                </div>
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title">
+                            <i class="fas fa-user-plus me-2"></i> Tambah Murid
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
 
-                <div class="modal-footer">
-                    <button name="simpan" class="btn btn-primary">Simpan</button>
-                </div>
+                    <div class="modal-body">
 
-            </form>
+                        <div class="mb-3">
+                            <label class="form-label">NISN</label>
+                            <input type="number" name="nisn" class="form-control" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Nama Murid</label>
+                            <input type="text" name="nama" class="form-control" required>
+                        </div>
+
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            Batal
+                        </button>
+                        <button type="submit" name="simpan" class="btn btn-primary">
+                            Simpan
+                        </button>
+                    </div>
+
+                </form>
+
+            </div>
         </div>
     </div>
 

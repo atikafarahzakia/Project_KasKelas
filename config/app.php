@@ -60,15 +60,14 @@ function kasMasukBulanIni()
     $bulan = date('m');
     $tahun = date('Y');
 
-    $result = query("
-        SELECT SUM(jumlah) as total
-        FROM transaksi
-        WHERE jenis='masuk'
-        AND MONTH(tanggal)='$bulan'
-        AND YEAR(tanggal)='$tahun'
+    $data = query("SELECT SUM(jumlah) as total 
+                   FROM transaksi 
+                   WHERE jenis='masuk'
+                   AND MONTH(tanggal) = '$bulan'
+                   AND YEAR(tanggal) = '$tahun'
     ");
 
-    return $result[0]['total'] ?? 0;
+    return $data[0]['total'] ?? 0;
 }
 
 // ================== KAS KELUAR BULAN INI ==================
@@ -93,11 +92,13 @@ function kasKeluarBulanIni()
 // ================== RINGKASAN KAS MASUK ==================
 function ringkasanKasMasuk()
 {
-    $masuk = query("SELECT SUM(jumlah) as total FROM transaksi WHERE jenis='masuk'");
-    $keluar = query("SELECT SUM(jumlah) as total FROM transaksi WHERE jenis='keluar'");
+    $totalMasuk = query("SELECT SUM(jumlah) as total 
+                         FROM transaksi 
+                         WHERE jenis='masuk'")[0]['total'] ?? 0;
 
-    $totalMasuk = $masuk[0]['total'] ?? 0;
-    $totalKeluar = $keluar[0]['total'] ?? 0;
+    $totalKeluar = query("SELECT SUM(jumlah) as total 
+                          FROM transaksi 
+                          WHERE jenis='keluar'")[0]['total'] ?? 0;
 
     return [
         'totalKasMasuk' => $totalMasuk,

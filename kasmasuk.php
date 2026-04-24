@@ -8,62 +8,74 @@ $murid = query("SELECT * FROM murid");
 $ringkasan = ringkasanKasMasuk();
 
 // ================= TAMBAH =================
+// ================= TAMBAH =================
 if (isset($_POST['simpan'])) {
+
     $nisn   = (int)$_POST['nisn'];
-    $tipe   = $_POST['tipe']; // bulanan / mingguan
+    $tipe   = $_POST['tipe'];
     $jumlah = (int)$_POST['jumlah'];
 
-    $kas_bulanan = 20000;
+    $kas_bulanan  = 20000;
     $kas_mingguan = 5000;
 
-    // ================== BULANAN ==================
+    $berhasil = false;
+
     if ($tipe == 'bulanan') {
+
+        $bulan_input = (int)$_POST['bulan'];
+        $tahun = date('Y');
 
         $jumlah_bulan = floor($jumlah / $kas_bulanan);
 
+        // ❗ minimal 1 bulan kalau input ada
+        if ($jumlah > 0 && $jumlah_bulan == 0) {
+            $jumlah_bulan = 1;
+        }
+
         for ($i = 0; $i < $jumlah_bulan; $i++) {
 
-            $tanggal = date('Y-m-d', strtotime("+$i month"));
-            $bulan   = date('m', strtotime($tanggal));
-            $tahun   = date('Y', strtotime($tanggal));
+            $bulan = $bulan_input + $i;
+            $tahun_loop = $tahun;
 
-            // CEK SUDAH LUNAS ATAU BELUM
+            if ($bulan > 12) {
+                $bulan -= 12;
+                $tahun_loop += 1;
+            }
+
+            $tanggal = $tahun_loop . '-' . str_pad($bulan, 2, '0', STR_PAD_LEFT) . '-01';
+
             $cek = query("SELECT SUM(jumlah) as total FROM transaksi 
-                          WHERE nisn='$nisn' 
-                          AND jenis='masuk'
-                          AND bulan='$bulan'
-                          AND tahun='$tahun'");
+                WHERE nisn='$nisn' 
+                AND jenis='masuk'
+                AND bulan='$bulan'
+                AND tahun='$tahun_loop'");
 
-            $total = $cek[0]['total'] ?? 0;
+            $total = isset($cek[0]['total']) ? (int)$cek[0]['total'] : 0;
 
-            if ($total >= $kas_bulanan) continue;
+            // ❗ kalau masih ada sisa → boleh bayar
+            if ($total < $kas_bulanan) {
 
-            query("INSERT INTO transaksi 
+                $sisa = $kas_bulanan - $total;
+
+                // ambil pembayaran sesuai sisa
+                $bayar = min($kas_bulanan, $sisa);
+
+                query("INSERT INTO transaksi 
                 (nisn, tanggal, bulan, tahun, jenis, jumlah, kategori, keterangan)
                 VALUES 
-                ('$nisn', '$tanggal', '$bulan', '$tahun', 'masuk', '$kas_bulanan', 'Kas', 'Kas Bulanan')");
+                ('$nisn', '$tanggal', '$bulan', '$tahun_loop', 'masuk', '$bayar', 'Kas', 'Kas Bulanan')");
+
+                $berhasil = true;
+            }
         }
     }
 
-    // ================== MINGGUAN ==================
-    if ($tipe == 'mingguan') {
-
-        $jumlah_minggu = floor($jumlah / $kas_mingguan);
-
-        for ($i = 0; $i < $jumlah_minggu; $i++) {
-
-            $tanggal = date('Y-m-d', strtotime("+$i week"));
-            $bulan   = date('m', strtotime($tanggal));
-            $tahun   = date('Y', strtotime($tanggal));
-
-            query("INSERT INTO transaksi 
-                (nisn, tanggal, bulan, tahun, jenis, jumlah, kategori, keterangan)
-                VALUES 
-                ('$nisn', '$tanggal', '$bulan', '$tahun', 'masuk', '$kas_mingguan', 'Kas', 'Kas Mingguan')");
-        }
+    // ================= REDIRECT =================
+    if ($berhasil) {
+        header("Location: kasmasuk.php?success=tambah");
+    } else {
+        header("Location: kasmasuk.php?error=tidak_ada_tagihan");
     }
-
-    header("Location: kasmasuk.php?success=tambah");
     exit;
 }
 
@@ -94,7 +106,7 @@ if (isset($_GET['hapus'])) {
 
 // ================= FILTER =================
 $search = $_GET['search'] ?? '';
-$tanggal = $_GET['tanggal'] ?? '';
+$bulan  = $_GET['bulan'] ?? '';
 
 $where = "transaksi.jenis='masuk'";
 
@@ -103,8 +115,8 @@ if ($search) {
     $where .= " AND murid.nama LIKE '%$search%'";
 }
 
-if ($tanggal) {
-    $where .= " AND DATE(transaksi.tanggal)='$tanggal'";
+if ($bulan) {
+    $where .= " AND transaksi.bulan = '$bulan'";
 }
 
 // ================= DATA =================
@@ -112,7 +124,8 @@ $data = query("SELECT transaksi.*, murid.nama
     FROM transaksi 
     JOIN murid ON transaksi.nisn = murid.nisn
     WHERE $where
-    ORDER BY transaksi.tanggal DESC");
+    ORDER BY transaksi.id_transaksi DESC
+");
 ?>
 
 <!doctype html>
@@ -277,8 +290,8 @@ $data = query("SELECT transaksi.*, murid.nama
             <?php if (isset($_GET['error'])): ?>
                 <div class="alert alert-danger alert-dismissible fade show" role="alert">
                     <?php
-                    if ($_GET['error'] == 'sudah_lunas') {
-                        echo '<strong>Gagal!</strong> Siswa tersebut sudah melunasi kas untuk semester ini.';
+                    if ($_GET['error'] == 'tidak_ada_tagihan') {
+                        echo '<strong>Gagal!</strong> Tidak ada tagihan yang bisa diproses atau sudah lunas di bulan tersebut.';
                     }
                     if ($_GET['error'] == 'melebihi_batas') {
                         $sisa = number_format($_GET['sisa']);
@@ -299,9 +312,22 @@ $data = query("SELECT transaksi.*, murid.nama
                 </div>
 
                 <div class="col-md-3">
-                    <label>Tanggal</label>
-                    <input type="date" name="tanggal" class="form-control"
-                        value="<?= $_GET['tanggal'] ?? '' ?>">
+                    <label>Bulan</label>
+                    <select name="bulan" class="form-control">
+                        <option value="">Semua Bulan</option>
+                        <option value="1">Januari</option>
+                        <option value="2">Februari</option>
+                        <option value="3">Maret</option>
+                        <option value="4">April</option>
+                        <option value="5">Mei</option>
+                        <option value="6">Juni</option>
+                        <option value="7">Juli</option>
+                        <option value="8">Agustus</option>
+                        <option value="9">September</option>
+                        <option value="10">Oktober</option>
+                        <option value="11">November</option>
+                        <option value="12">Desember</option>
+                    </select>
                 </div>
 
                 <div class="col-md-3 d-flex align-items-end">
@@ -309,7 +335,7 @@ $data = query("SELECT transaksi.*, murid.nama
                     <a href="kasmasuk.php" class="btn btn-secondary">Reset</a>
                 </div>
             </form>
-            
+
             <!-- TABLE -->
             <div class="card">
                 <div class="card-body">
@@ -430,10 +456,27 @@ $data = query("SELECT transaksi.*, murid.nama
                         </select>
                     </div>
 
+
+                    <label>Bulan Bayar</label>
+                    <select name="bulan" class="form-control" required>
+                        <option value="1">Januari</option>
+                        <option value="2">Februari</option>
+                        <option value="3">Maret</option>
+                        <option value="4">April</option>
+                        <option value="5">Mei</option>
+                        <option value="6">Juni</option>
+                        <option value="7">Juli</option>
+                        <option value="8">Agustus</option>
+                        <option value="9">September</option>
+                        <option value="10">Oktober</option>
+                        <option value="11">November</option>
+                        <option value="12">Desember</option>
+                    </select>
+
                     <!-- JUMLAH -->
                     <div class="mb-3">
                         <label>Total Bayar</label>
-                        <input type="number" name="jumlah" class="form-control" required>
+                        <input type="number" name="jumlah" id="jumlah" class="form-control" required>
                     </div>
 
                 </div>
@@ -446,6 +489,17 @@ $data = query("SELECT transaksi.*, murid.nama
         </div>
     </div>
 
+    <script>
+        const input = document.getElementById('jumlah');
+
+        input.addEventListener('input', function() {
+            this.value = this.value.replace(/\D/g, '');
+        });
+
+        function formatRupiah(angka) {
+            return angka.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        }
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
 </body>
