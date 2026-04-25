@@ -2,7 +2,7 @@
 session_start();
 include 'config/app.php';
 
-$target_kas = 20000;
+$target_kas = 240000;
 
 // FILTER
 $search = $_GET['search'] ?? '';
@@ -217,7 +217,7 @@ $ringkasan = ringkasanStatusBayar($target_kas);
 
                     <div class="col-md-2 d-flex align-items-end">
                         <button class="btn btn-primary me-2">Filter</button>
-                        <a href="kaskeluar.php" class="btn btn-secondary">Reset</a>
+                        <a href="statusbayar.php" class="btn btn-secondary">Reset</a>
                     </div>
 
                 </div>
@@ -298,22 +298,6 @@ $ringkasan = ringkasanStatusBayar($target_kas);
             </div>
         </div>
     </div>
-
-    <!-- CHART -->
-    <!-- <script>
-        const ctx = document.getElementById('chartKas');
-
-        new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: <?= json_encode($nama) ?>,
-                datasets: [{
-                    label: 'Total Pembayaran',
-                    data: <?= json_encode($total) ?>
-                }]
-            }
-        });
-    </script> -->
 
 </body>
 

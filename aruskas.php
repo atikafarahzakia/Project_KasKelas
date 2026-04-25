@@ -2,8 +2,9 @@
 session_start();
 include 'config/app.php';
 
-$bulan = $_GET['bulan'] ?? '';
-$tahun = $_GET['tahun'] ?? '';
+// ================= FILTER =================
+$bulan = (int)($_GET['bulan'] ?? 0);
+$tahun = (int)($_GET['tahun'] ?? 0);
 
 $dataMasuk = [];
 $dataKeluar = [];
@@ -14,17 +15,13 @@ $saldo = 0;
 if ($bulan && $tahun) {
 
     // ================= RINGKASAN =================
-    $qMasuk = mysqli_query($db, "SELECT SUM(jumlah) as total 
+    $masuk = query("SELECT IFNULL(SUM(jumlah),0) as total 
         FROM transaksi 
-        WHERE jenis='masuk' AND bulan='$bulan' AND tahun='$tahun'");
-    $masuk = mysqli_fetch_assoc($qMasuk)['total'] ?? 0;
+        WHERE jenis='masuk' AND bulan='$bulan' AND tahun='$tahun'")[0]['total'];
 
-    $qKeluar = mysqli_query($db, "SELECT SUM(jumlah) as total 
-FROM transaksi 
-WHERE jenis='keluar' 
-AND MONTH(tanggal)='$bulan' 
-AND YEAR(tanggal)='$tahun'");
-    $keluar = mysqli_fetch_assoc($qKeluar)['total'] ?? 0;
+    $keluar = query("SELECT IFNULL(SUM(jumlah),0) as total 
+        FROM transaksi 
+        WHERE jenis='keluar' AND bulan='$bulan' AND tahun='$tahun'")[0]['total'];
 
     $saldo = $masuk - $keluar;
 
@@ -66,7 +63,6 @@ AND YEAR(tanggal)='$tahun'");
         .chart-card {
             height: 350px;
             display: flex;
-            flex-direction: column;
             justify-content: center;
         }
 
@@ -110,12 +106,12 @@ AND YEAR(tanggal)='$tahun'");
 </head>
 
 <body>
+
     <div class="d-flex">
 
         <!-- SIDEBAR -->
         <div class="sidebar p-3">
-            <h4 class="text-center">Kas Kelas</h4>
-
+            <h4 class="text-center mb-3">Kas Kelas</h4>
             <hr>
 
             <div class="profile text-center mb-3">
@@ -134,6 +130,7 @@ AND YEAR(tanggal)='$tahun'");
                 <?php endif; ?>
 
                 <?php if ($_SESSION['role'] == 'bendahara'): ?>
+
                     <li><a class="nav-link" href="kasmasuk.php"><i class="fas fa-arrow-down"></i> Kas Masuk</a></li>
                     <li><a class="nav-link" href="kaskeluar.php"><i class="fas fa-arrow-up"></i> Kas Keluar</a></li>
                 <?php endif; ?>
@@ -150,12 +147,11 @@ AND YEAR(tanggal)='$tahun'");
         <!-- CONTENT -->
         <div class="flex-fill p-4">
 
-            <h4 class="mb-4">Arus Kas</h4>
+            <h4>Arus Kas</h4>
 
             <!-- FILTER -->
             <form method="GET" class="card p-3 mb-4">
                 <div class="row">
-
                     <div class="col-md-4">
                         <label>Bulan</label>
                         <select name="bulan" class="form-control">
@@ -180,10 +176,10 @@ AND YEAR(tanggal)='$tahun'");
                         </select>
                     </div>
 
-                    <div class="col-md-4 d-flex align-items-end">
+                    <div class="col-md-4 d-flex align-items-end gap-3">
                         <button class="btn btn-primary w-100">Filter</button>
+                        <a href="aruskas.php" class="btn btn-secondary w-50">Reset</a>
                     </div>
-
                 </div>
             </form>
 
@@ -197,12 +193,14 @@ AND YEAR(tanggal)='$tahun'");
                             <h5>Rp <?= number_format($masuk) ?></h5>
                         </div>
                     </div>
+
                     <div class="col-md-4">
                         <div class="card p-3">
                             <h6 class="text-danger">Kas Keluar</h6>
                             <h5>Rp <?= number_format($keluar) ?></h5>
                         </div>
                     </div>
+
                     <div class="col-md-4">
                         <div class="card p-3">
                             <h6>Saldo</h6>
@@ -213,93 +211,51 @@ AND YEAR(tanggal)='$tahun'");
 
                 <!-- CHART -->
                 <div class="row mb-4">
-
-                    <!-- BAR CHART -->
                     <div class="col-md-6">
-                        <div class="card p-3 chart-card">
-                            <h6>Grafik Bar</h6>
+                        <div class="card p-3">
                             <canvas id="barChart"></canvas>
                         </div>
                     </div>
 
-                    <!-- PIE CHART -->
                     <div class="col-md-6">
-                        <div class="card p-3 chart-card text-center">
-                            <h6>Perbandingan</h6>
-                            <div style="max-width:220px; margin:auto;">
+                        <div class="card p-3 text-center">
+                            <div style="width:250px; height:285px; margin:auto;">
                                 <canvas id="pieChart"></canvas>
                             </div>
                         </div>
                     </div>
-
                 </div>
 
-                <!-- TABEL SAMPINGAN -->
+                <!-- TABEL -->
                 <div class="row">
 
-                    <!-- KAS MASUK -->
                     <div class="col-md-6">
-                        <div class="card mb-4">
-                            <div class="card-body">
-                                <h6 class="text-success">Kas Masuk</h6>
-
-                                <?php if ($dataMasuk): ?>
-                                    <table class="table table-sm table-hover">
-                                        <thead>
-                                            <tr>
-                                                <th>Tanggal</th>
-                                                <th>Keterangan</th>
-                                                <th>Jumlah</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <?php foreach ($dataMasuk as $d): ?>
-                                                <tr>
-                                                    <td><?= $d['tanggal'] ?></td>
-                                                    <td><?= $d['keterangan'] ?></td>
-                                                    <td>Rp <?= number_format($d['jumlah']) ?></td>
-                                                </tr>
-                                            <?php endforeach; ?>
-                                        </tbody>
-                                    </table>
-                                <?php else: ?>
-                                    <p class="text-muted">Tidak ada data</p>
-                                <?php endif; ?>
-
-                            </div>
+                        <div class="card p-3">
+                            <h6 class="text-success">Kas Masuk</h6>
+                            <table class="table table-sm">
+                                <?php foreach ($dataMasuk as $d): ?>
+                                    <tr>
+                                        <td><?= $d['tanggal'] ?></td>
+                                        <td><?= $d['keterangan'] ?></td>
+                                        <td>Rp <?= number_format($d['jumlah']) ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </table>
                         </div>
                     </div>
 
-                    <!-- KAS KELUAR -->
                     <div class="col-md-6">
-                        <div class="card mb-4">
-                            <div class="card-body">
-                                <h6 class="text-danger">Kas Keluar</h6>
-
-                                <?php if ($dataKeluar): ?>
-                                    <table class="table table-sm table-hover">
-                                        <thead>
-                                            <tr>
-                                                <th>Tanggal</th>
-                                                <th>Keterangan</th>
-                                                <th>Jumlah</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <?php foreach ($dataKeluar as $d): ?>
-                                                <tr>
-                                                    <td><?= $d['tanggal'] ?></td>
-                                                    <td><?= $d['keterangan'] ?></td>
-                                                    <td>Rp <?= number_format($d['jumlah']) ?></td>
-                                                </tr>
-                                            <?php endforeach; ?>
-                                        </tbody>
-                                    </table>
-                                <?php else: ?>
-                                    <p class="text-muted">Tidak ada data</p>
-                                <?php endif; ?>
-
-                            </div>
+                        <div class="card p-3">
+                            <h6 class="text-danger">Kas Keluar</h6>
+                            <table class="table table-sm">
+                                <?php foreach ($dataKeluar as $d): ?>
+                                    <tr>
+                                        <td><?= $d['tanggal'] ?></td>
+                                        <td><?= $d['keterangan'] ?></td>
+                                        <td>Rp <?= number_format($d['jumlah']) ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </table>
                         </div>
                     </div>
 
@@ -307,7 +263,7 @@ AND YEAR(tanggal)='$tahun'");
 
             <?php else: ?>
                 <div class="alert alert-info text-center">
-                    Silakan pilih bulan & tahun dulu
+                    Pilih bulan & tahun dulu
                 </div>
             <?php endif; ?>
 
@@ -321,7 +277,7 @@ AND YEAR(tanggal)='$tahun'");
                 data: {
                     labels: <?= json_encode($label) ?>,
                     datasets: [{
-                        label: 'Total',
+                        label: 'Total Kas', // 🔥 tambahin ini
                         data: <?= json_encode($dataChartFix) ?>
                     }]
                 }
@@ -337,7 +293,7 @@ AND YEAR(tanggal)='$tahun'");
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: true
+                    maintainAspectRatio: false // 🔥 ini penting
                 }
             });
         </script>

@@ -6,19 +6,22 @@ session_start();
 $murid = query("SELECT * FROM murid");
 $ringkasan = ringkasanKasMasuk();
 
-// FILTER
+// ================= FILTER =================
 $search = $_GET['search'] ?? '';
 $bulan_filter = $_GET['bulan'] ?? '';
 
 $where = "WHERE t.jenis = 'masuk'";
 
-if ($search) {
+// SEARCH NAMA
+if (!empty($search)) {
     $search = mysqli_real_escape_string($GLOBALS['db'], $search);
     $where .= " AND m.nama LIKE '%$search%'";
 }
 
-if ($bulan_filter) {
-    $where .= " AND t.bulan = '$bulan_filter'";
+// FILTER BULAN
+if (!empty($bulan_filter)) {
+    $bulan_filter = (int)$bulan_filter;
+    $where .= " AND t.bulan = $bulan_filter";
 }
 
 // ================= DELETE =================
@@ -37,14 +40,14 @@ if (isset($_POST['update'])) {
     $id     = (int)$_POST['id_transaksi'];
     $nisn   = (int)$_POST['nisn'];
     $jumlah = (int)$_POST['jumlah'];
-    $bulan = (int)$_POST['bulan'];
+
+    // ❌ TIDAK ADA BULAN DI EDIT → JANGAN DIPAKAI
 
     query("UPDATE transaksi SET 
-    nisn = '$nisn',
-    jumlah = '$jumlah',
-    bulan = '$bulan'
-    WHERE id_transaksi = $id
-");
+        nisn = '$nisn',
+        jumlah = '$jumlah'
+        WHERE id_transaksi = $id
+    ");
 
     header("Location: kasmasuk.php?success=update");
     exit;
@@ -55,13 +58,8 @@ if (isset($_POST['simpan'])) {
 
     $nisn   = (int)$_POST['nisn'];
     $tipe   = $_POST['tipe'];
-    $bulan  = (int)$_POST['bulan'];
+    $bulan_list = $_POST['bulan'] ?? [];
     $tahun  = date('Y');
-
-    $jumlah = (int) $_POST['jumlah'];
-
-    // 🔥 FIX BULAN JELAS
-    $tanggal = $tahun . '-' . str_pad($bulan, 2, '0', STR_PAD_LEFT) . '-01';
 
     $berhasil = false;
 
@@ -70,48 +68,54 @@ if (isset($_POST['simpan'])) {
 
         $kas_bulanan = 20000;
 
-        $cek = query("SELECT IFNULL(SUM(jumlah),0) as total 
-        FROM transaksi 
-        WHERE nisn='$nisn'
-        AND jenis='masuk'
-        AND bulan='$bulan'
-        AND tahun='$tahun'");
+        foreach ($bulan_list as $bulan) {
 
-        if ($cek[0]['total'] < $kas_bulanan) {
+            $cek = query("SELECT IFNULL(SUM(jumlah),0) as total 
+                FROM transaksi 
+                WHERE nisn='$nisn'
+                AND jenis='masuk'
+                AND bulan='$bulan'
+                AND tahun='$tahun'");
 
-            query("INSERT INTO transaksi 
-            (nisn, tanggal, bulan, tahun, minggu, jenis, jumlah, kategori, keterangan)
-            VALUES 
-            ('$nisn', '$tanggal', '$bulan', '$tahun', NULL, 'masuk', '$jumlah', 'Kas', 'Kas Masuk')");
+            if ($cek[0]['total'] < $kas_bulanan) {
 
-            $berhasil = true;
+                $tanggal = $tahun . '-' . str_pad($bulan, 2, '0', STR_PAD_LEFT) . '-01';
+
+                query("INSERT INTO transaksi 
+                (nisn, tanggal, bulan, tahun, minggu, jenis, jumlah, kategori, keterangan)
+                VALUES 
+                ('$nisn', '$tanggal', '$bulan', '$tahun', NULL, 'masuk', '$kas_bulanan', 'Kas', 'Kas Bulanan')");
+            }
         }
+
+        $berhasil = true;
     }
 
     // ================= MINGGUAN =================
     if ($tipe == 'mingguan') {
 
         $minggu_list = $_POST['minggu'] ?? [];
+        $bulan = $_POST['bulan'][0] ?? 0; // 🔥 WAJIB ADA
         $kas_mingguan = 5000;
 
         foreach ($minggu_list as $minggu) {
 
             $cek = query("SELECT IFNULL(SUM(jumlah),0) as total 
-            FROM transaksi 
-            WHERE nisn='$nisn'
-            AND jenis='masuk'
-            AND bulan='$bulan'
-            AND tahun='$tahun'
-            AND minggu='$minggu'");
+                FROM transaksi 
+                WHERE nisn='$nisn'
+                AND jenis='masuk'
+                AND bulan='$bulan'
+                AND tahun='$tahun'
+                AND minggu='$minggu'");
 
             if ($cek[0]['total'] < $kas_mingguan) {
 
-                $jumlah = $kas_mingguan; // 🔥 INI YANG KAMU TANYA
+                $tanggal = $tahun . '-' . str_pad($bulan, 2, '0', STR_PAD_LEFT) . '-01';
 
                 query("INSERT INTO transaksi 
-    (nisn, tanggal, bulan, tahun, minggu, jenis, jumlah, kategori, keterangan)
-    VALUES 
-    ('$nisn', '$tanggal', '$bulan', '$tahun', '$minggu', 'masuk', '$jumlah', 'Kas', 'Kas Mingguan')");
+                (nisn, tanggal, bulan, tahun, minggu, jenis, jumlah, kategori, keterangan)
+                VALUES 
+                ('$nisn', '$tanggal', '$bulan', '$tahun', '$minggu', 'masuk', '$kas_mingguan', 'Kas', 'Kas Mingguan')");
 
                 $berhasil = true;
             }
@@ -318,6 +322,7 @@ $data = query("
                 <div class="col-md-3">
                     <label>Bulan</label>
                     <select name="bulan" class="form-control">
+                        <option value="">-- Semua Bulan --</option>
                         <option value="1" <?= ($bulan_filter == 1 ? 'selected' : '') ?>>Januari</option>
                         <option value="2" <?= ($bulan_filter == 2 ? 'selected' : '') ?>>Februari</option>
                         <option value="3" <?= ($bulan_filter == 3 ? 'selected' : '') ?>>Maret</option>
@@ -465,22 +470,14 @@ $data = query("
 
                     <!-- BULAN -->
                     <div class="mb-3">
-                        <label>Bulan Bayar</label>
-                        <select name="bulan" id="bulan" class="form-control" required>
-                            <option selected>Pilih Bulan</option>
-                            <option value="1">Januari</option>
-                            <option value="2">Februari</option>
-                            <option value="3">Maret</option>
-                            <option value="4">April</option>
-                            <option value="5">Mei</option>
-                            <option value="6">Juni</option>
-                            <option value="7">Juli</option>
-                            <option value="8">Agustus</option>
-                            <option value="9">September</option>
-                            <option value="10">Oktober</option>
-                            <option value="11">November</option>
-                            <option value="12">Desember</option>
-                        </select>
+                        <label>Pilih Bulan</label><br>
+
+                        <?php for ($i = 1; $i <= 12; $i++): ?>
+                            <label style="margin-right:10px;">
+                                <input type="checkbox" name="bulan[]" value="<?= $i ?>">
+                                <?= date('F', mktime(0, 0, 0, $i, 1)) ?>
+                            </label>
+                        <?php endfor; ?>
                     </div>
 
                     <!-- MINGGU -->
@@ -520,12 +517,13 @@ $data = query("
                 const tipe = document.getElementById('tipe');
                 const mingguBox = document.getElementById('mingguBox');
                 const jumlah = document.getElementById('jumlah');
-                const jumlahHidden = document.getElementById('jumlahHidden'); // FIX INI WAJIB
+                const jumlahHidden = document.getElementById('jumlahHidden');
 
                 const kasBulanan = 20000;
                 const kasMingguan = 5000;
 
                 const mingguCheckbox = document.querySelectorAll('input[name="minggu[]"]');
+                const bulanCheckbox = document.querySelectorAll('input[name="bulan[]"]');
 
                 function hitungMinggu() {
                     let total = 0;
@@ -535,16 +533,23 @@ $data = query("
                     return total;
                 }
 
+                function hitungBulan() {
+                    let total = 0;
+                    bulanCheckbox.forEach(cb => {
+                        if (cb.checked) total += kasBulanan;
+                    });
+                    return total;
+                }
+
                 function formatRupiah(angka) {
                     return 'Rp ' + angka.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
                 }
 
                 function updateJumlah() {
-
                     let total = 0;
 
                     if (tipe.value === 'bulanan') {
-                        total = kasBulanan;
+                        total = hitungBulan();
                     } else {
                         total = hitungMinggu();
                     }
@@ -565,6 +570,7 @@ $data = query("
 
                 tipe.onchange = toggleMinggu;
                 mingguCheckbox.forEach(cb => cb.onchange = updateJumlah);
+                bulanCheckbox.forEach(cb => cb.onchange = updateJumlah);
 
                 toggleMinggu();
             });

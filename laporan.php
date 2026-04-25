@@ -5,7 +5,7 @@ include 'config/app.php';
 $search = $_GET['search'] ?? '';
 $jenis = $_GET['jenis'] ?? '';
 
-// FILTER
+// ================= FILTER =================
 $where = "WHERE 1=1";
 
 if ($search) {
@@ -17,34 +17,44 @@ if ($jenis) {
     $where .= " AND jenis='$jenis'";
 }
 
-// QUERY
+// ================= QUERY =================
 $q = query("SELECT * FROM transaksi $where ORDER BY tanggal DESC");
 
-// RINGKASAN
-$qMasuk = mysqli_query($db, "SELECT SUM(jumlah) as total FROM transaksi WHERE jenis='masuk'");
-$dMasuk = mysqli_fetch_assoc($qMasuk);
-$masuk = $dMasuk['total'] ?? 0;
+// ================= PAGINATION KAS MASUK =================
+$limit = 10;
+$page = (int)($_GET['page'] ?? 1);
+$start = ($page - 1) * $limit;
 
-$qKeluar = mysqli_query($db, "SELECT SUM(jumlah) as total FROM transaksi WHERE jenis='keluar'");
-$dKeluar = mysqli_fetch_assoc($qKeluar);
-$keluar = $dKeluar['total'] ?? 0;
-
-$saldo = $masuk - $keluar;
-
-// CHART
-$dataChart = query("
-    SELECT jenis, SUM(jumlah) as total
-    FROM transaksi
-    GROUP BY jenis
+$dataMasukPaging = query("
+    SELECT * FROM transaksi
+    WHERE jenis='masuk'
+    ORDER BY tanggal DESC
+    LIMIT $start, $limit
 ");
 
-$label = [];
-$data = [];
+// total halaman
+$totalData = query("SELECT COUNT(*) as total FROM transaksi WHERE jenis='masuk'")[0]['total'];
+$totalPage = ceil($totalData / $limit);
 
-foreach ($dataChart as $d) {
-    $label[] = strtoupper($d['jenis']);
-    $data[] = $d['total'];
+// ================= RINGKASAN =================
+$masuk = query("SELECT IFNULL(SUM(jumlah),0) as total FROM transaksi WHERE jenis='masuk'")[0]['total'];
+$keluar = query("SELECT IFNULL(SUM(jumlah),0) as total FROM transaksi WHERE jenis='keluar'")[0]['total'];
+$saldo = $masuk - $keluar;
+
+// ================= GROUP PER BULAN =================
+$groupMasuk = [];
+$groupKeluar = [];
+
+foreach ($q as $d) {
+    $bulan = date('F Y', strtotime($d['tanggal']));
+
+    if ($d['jenis'] == 'masuk') {
+        $groupMasuk[$bulan][] = $d;
+    } else {
+        $groupKeluar[$bulan][] = $d;
+    }
 }
+
 ?>
 
 <!doctype html>
@@ -56,7 +66,6 @@ foreach ($dataChart as $d) {
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
         body {
@@ -67,7 +76,6 @@ foreach ($dataChart as $d) {
             border-radius: 12px;
         }
 
-       /* SIDEBAR SAMA */
         .sidebar {
             width: 250px;
             min-height: 100vh;
@@ -112,13 +120,12 @@ foreach ($dataChart as $d) {
 
         <!-- SIDEBAR -->
         <div class="sidebar p-3">
-
             <h4 class="text-center mb-3">Kas Kelas</h4>
             <hr>
 
             <div class="profile text-center mb-3">
                 <img src="assets/profile.jpg">
-                <p><?= $_SESSION['role']; ?></p>
+                <p><?= htmlspecialchars($_SESSION['role']) ?></p>
             </div>
 
             <hr>
@@ -130,9 +137,8 @@ foreach ($dataChart as $d) {
                     <li><a class="nav-link" href="datamurid.php"><i class="fas fa-users"></i> Data Murid</a></li>
                     <li><a class="nav-link" href="pengajuan.php"><i class="fa-solid fa-clock"></i>Pengajuan</a></li>
                 <?php endif; ?>
-                
+
                 <?php if ($_SESSION['role'] == 'bendahara'): ?>
-                    
                     <li><a class="nav-link" href="kasmasuk.php"><i class="fas fa-arrow-down"></i> Kas Masuk</a></li>
                     <li><a class="nav-link" href="kaskeluar.php"><i class="fas fa-arrow-up"></i> Kas Keluar</a></li>
                 <?php endif; ?>
@@ -142,20 +148,18 @@ foreach ($dataChart as $d) {
                 <li><a class="nav-link active" href="laporan.php"><i class="fas fa-file"></i> Laporan</a></li>
 
                 <hr>
-
                 <li><a class="nav-link text-danger" href="logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
-
             </ul>
         </div>
+
 
         <!-- CONTENT -->
         <div class="flex-fill p-4">
 
             <h4 class="mb-4">Laporan Kas</h4>
 
-            <!-- RINGKASAN (SAMA STYLE) -->
-            <div class="row g-3 mb-4 text-center">
-
+            <!-- RINGKASAN -->
+            <div class="row mb-4 text-center">
                 <div class="col-md-4">
                     <div class="card p-3">
                         <h6>Total Masuk</h6>
@@ -176,91 +180,119 @@ foreach ($dataChart as $d) {
                         <h5>Rp <?= number_format($saldo) ?></h5>
                     </div>
                 </div>
-
             </div>
 
             <!-- FILTER -->
-            <form method="GET" class="card p-3 mb-4">
-                <div class="row g-2">
+            <form method="GET" class="row g-2 mb-2 mt-3">
 
-                    <div class="col-md-8">
-                        <small>Cari keterangan</small>
-                        <input type="text" name="search" class="form-control" value="<?= htmlspecialchars($search); ?>">
-                    </div>
-
-                    <div class="col-md-2">
-                        <small>Jenis</small>
-                        <select name="jenis" class="form-select">
-                            <option value="">Semua</option>
-                            <option value="masuk">Masuk</option>
-                            <option value="keluar">Keluar</option>
-                        </select>
-                    </div>
-
-                    <div class="col-md-2 d-flex align-items-end">
-                        <button class="btn btn-primary w-100">Cari</button>
-                    </div>
-
+                <div class="col-md-6">
+                    <label for="">Cari Laporan</label>
+                    <input type="text" name="search" class="form-control"value="<?= htmlspecialchars($search) ?>">
                 </div>
+
+                <div class="col-md-3">
+                    <label for="">Jenis Kas</label>
+                    <select name="jenis" class="form-select">
+                        <option value="">Semua</option>
+                        <option value="masuk">Masuk</option>
+                        <option value="keluar">Keluar</option>
+                    </select>
+                </div>
+
+                <div class="col-md-3 d-flex align-items-end">
+                    <button class="btn btn-primary me-2">Filter</button>
+                    <a href="laporan.php" class="btn btn-secondary">Reset</a>
+                </div>
+
             </form>
 
-            <!-- TABEL -->
-            <div class="card mb-4">
-                <div class="card-body">
+            <div class="row">
 
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Tanggal</th>
-                                <th>Keterangan</th>
-                                <th>Jenis</th>
-                                <th>Jumlah</th>
-                            </tr>
-                        </thead>
+                <!-- ================= KAS MASUK (PAGINATION) ================= -->
+                <div class="col-md-6">
+                    <div class="card p-3">
+                        <h5 class="text-success">Kas Masuk</h5>
 
-                        <tbody>
-                            <?php foreach ($q as $d): ?>
+                        <table class="table table-sm">
+                            <thead>
                                 <tr>
-                                    <td><?= $d['tanggal'] ?></td>
-                                    <td><?= $d['keterangan'] ?></td>
-                                    <td>
-                                        <span class="badge bg-<?= $d['jenis'] == 'masuk' ? 'success' : 'danger' ?>">
-                                            <?= $d['jenis'] ?>
-                                        </span>
-                                    </td>
-                                    <td>Rp <?= number_format($d['jumlah']) ?></td>
+                                    <th>Tanggal</th>
+                                    <th>Keterangan</th>
+                                    <th>Jumlah</th>
                                 </tr>
+                            </thead>
+
+                            <tbody>
+                                <?php if (!empty($dataMasukPaging)): ?>
+                                    <?php foreach ($dataMasukPaging as $d): ?>
+                                        <tr>
+                                            <td><?= $d['tanggal'] ?></td>
+                                            <td><?= $d['keterangan'] ?></td>
+                                            <td>Rp <?= number_format($d['jumlah']) ?></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <tr>
+                                        <td colspan="3" class="text-center text-muted">Tidak ada data</td>
+                                    </tr>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+
+                        <!-- PAGINATION -->
+                        <nav>
+                            <ul class="pagination">
+                                <?php for ($i = 1; $i <= $totalPage; $i++): ?>
+                                    <li class="page-item <?= ($i == $page ? 'active' : '') ?>">
+                                        <a class="page-link"
+                                            href="?page=<?= $i ?>&search=<?= $search ?>&jenis=<?= $jenis ?>">
+                                            <?= $i ?>
+                                        </a>
+                                    </li>
+                                <?php endfor; ?>
+                            </ul>
+                        </nav>
+
+                    </div>
+                </div>
+
+                <!-- ================= KAS KELUAR (GROUP BULAN) ================= -->
+                <div class="col-md-6">
+                    <div class="card p-3">
+                        <h5 class="text-danger">Kas Keluar</h5>
+
+                        <?php if (!empty($groupKeluar)): ?>
+                            <?php foreach ($groupKeluar as $bulan => $items): ?>
+                                <h6 class="mt-3"><?= $bulan ?></h6>
+                                <table class="table table-sm">
+                                    <?php
+                                    $total = 0;
+                                    foreach ($items as $d):
+                                        $total += $d['jumlah'];
+                                    ?>
+                                        <tr>
+                                            <td><?= $d['tanggal'] ?></td>
+                                            <td><?= $d['keterangan'] ?></td>
+                                            <td>Rp <?= number_format($d['jumlah']) ?></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                    <tr class="fw-bold">
+                                        <td colspan="2">Total</td>
+                                        <td>Rp <?= number_format($total) ?></td>
+                                    </tr>
+                                </table>
                             <?php endforeach; ?>
-                        </tbody>
+                        <?php else: ?>
+                            <p class="text-muted">Tidak ada data</p>
+                        <?php endif; ?>
 
-                    </table>
-
+                    </div>
                 </div>
-            </div>
 
-            <!-- CHART (SAMA POSISI) -->
-            <!-- <div class="card">
-                <div class="card-body">
-                    <h6>Grafik Kas</h6>
-                    <canvas id="chartKas" height="100"></canvas>
-                </div>
             </div>
 
         </div>
     </div>
-
-    <script>
-        new Chart(document.getElementById('chartKas'), {
-            type: 'bar',
-            data: {
-                labels: <?= json_encode($label) ?>,
-                datasets: [{
-                    label: 'Total',
-                    data: <?= json_encode($data) ?>
-                }]
-            }
-        });
-    </script> -->
 
 </body>
 
