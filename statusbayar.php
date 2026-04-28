@@ -2,21 +2,22 @@
 session_start();
 include 'config/app.php';
 
+if (!isset($_SESSION['login']))
+    header("location:login.php");
+
 $target_kas = 240000;
 
 // FILTER
 $search = $_GET['search'] ?? '';
 $status_filter = $_GET['status'] ?? '';
 
-// WHERE DINAMIS
 $where = "WHERE 1=1";
-
 if ($search) {
-    $search = mysqli_real_escape_string($GLOBALS['db'], $search);
-    $where .= " AND murid.nama LIKE '%$search%'";
+    $search_escaped = mysqli_real_escape_string($GLOBALS['db'], $search);
+    $where .= " AND murid.nama LIKE '%$search_escaped%'";
 }
 
-// QUERY UTAMA (INI YANG DIPAKAI TABEL)
+// QUERY UTAMA
 $q = query("
     SELECT 
         murid.nisn,
@@ -35,7 +36,7 @@ $q = query("
     ORDER BY murid.nama ASC
 ");
 
-// CHART
+// CHART DATA
 $dataChart = query("
     SELECT murid.nama, IFNULL(SUM(transaksi.jumlah),0) as total
     FROM murid
@@ -45,260 +46,360 @@ $dataChart = query("
     GROUP BY murid.nisn, murid.nama
 ");
 
-$nama = [];
-$total = [];
-
+$chartNama = [];
+$chartTotal = [];
 foreach ($dataChart as $d) {
-    $nama[] = $d['nama'];
-    $total[] = $d['total'];
+    $chartNama[]  = $d['nama'];
+    $chartTotal[] = (int)$d['total'];
 }
 
 $ringkasan = ringkasanStatusBayar($target_kas);
 ?>
-
 <!doctype html>
-<html lang="en">
+<html lang="id">
 
 <head>
-    <title>Status Pembayaran</title>
-    <meta charset="utf-8" />
-
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Status Bayar — Kas Kelas</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="/style/style.css">
-
-    <style>
-        body {
-            background: #f5f7fb;
-        }
-
-        .card {
-            border-radius: 12px;
-        }
-
-        .progress {
-            height: 18px;
-        }
-
-        /* SIDEBAR SAMA */
-        .sidebar {
-            width: 250px;
-            min-height: 100vh;
-            background: linear-gradient(180deg, #0d6efd, #0b5ed7);
-            color: white;
-            position: sticky;
-            top: 0;
-        }
-
-        .sidebar .nav-link {
-            color: rgba(255, 255, 255, 0.85);
-            padding: 12px 15px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            transition: 0.3s;
-        }
-
-        .sidebar .nav-link:hover {
-            background: rgba(255, 255, 255, 0.15);
-            transform: translateX(5px);
-        }
-
-        .sidebar .nav-link.active {
-            background: white;
-            color: #0d6efd !important;
-        }
-
-        .sidebar .profile img {
-            width: 65px;
-            height: 65px;
-            border-radius: 50%;
-            border: 3px solid white;
-            object-fit: cover;
-        }
-    </style>
+    <link rel="stylesheet" href="style/statusbayar.css">
 </head>
 
 <body>
-    <div class="d-flex">
+    <div class="app">
+
+        <div class="sidebar-overlay" id="overlay" onclick="closeSidebar()"></div>
 
         <!-- SIDEBAR -->
-        <div class="sidebar p-3">
-
-            <h4 class="text-center mb-3">Kas Kelas</h4>
-            <hr>
-
-            <div class="profile text-center mb-3">
-                <img src="assets/profile.jpg">
-                <p><?= $_SESSION['role']; ?></p>
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-logo">
+                <div class="logo-icon"><i class="fas fa-coins"></i></div>
+                <span>Kas Kelas</span>
             </div>
-
-            <hr>
-
-            <ul class="nav flex-column gap-2">
-                <li><a class="nav-link" href="dashboard.php"><i class="fas fa-home"></i> Dashboard</a></li>
+            <div class="sidebar-divider"></div>
+            <div class="sidebar-profile">
+                <img src="assets/profile.jpg" alt="Profil"
+                    onerror="this.src='https://ui-avatars.com/api/?name=<?= urlencode($_SESSION['username']) ?>&background=3b82f6&color=fff&size=80'">
+                <div class="info">
+                    <div class="name"><?= htmlspecialchars($_SESSION['username']) ?></div>
+                    <div class="role"><?= htmlspecialchars($_SESSION['role']) ?></div>
+                </div>
+            </div>
+            <div class="sidebar-divider"></div>
+            <div class="sidebar-nav">
+                <a href="dashboard.php"><i class="fas fa-home"></i> Dashboard</a>
 
                 <?php if ($_SESSION['role'] == 'wali kelas'): ?>
-                    <li><a class="nav-link" href="datamurid.php"><i class="fas fa-users"></i> Data Murid</a></li>
-                    <li><a class="nav-link" href="pengajuan.php"><i class="fa-solid fa-clock"></i>Pengajuan</a></li>
+                    <a href="datamurid.php"><i class="fas fa-users"></i> Data Murid</a>
+                    <a href="pengajuan.php"><i class="fas fa-clock"></i> Pengajuan</a>
                 <?php endif; ?>
 
                 <?php if ($_SESSION['role'] == 'bendahara'): ?>
-
-                    <li><a class="nav-link" href="kasmasuk.php"><i class="fas fa-arrow-down"></i> Kas Masuk</a></li>
-                    <li><a class="nav-link" href="kaskeluar.php"><i class="fas fa-arrow-up"></i> Kas Keluar</a></li>
+                    <a href="kasmasuk.php"><i class="fas fa-arrow-down"></i> Kas Masuk</a>
+                    <a href="kaskeluar.php"><i class="fas fa-arrow-up"></i> Kas Keluar</a>
                 <?php endif; ?>
 
-                <li><a class="nav-link" href="aruskas.php"><i class="fas fa-chart-bar"></i> Arus Kas</a></li>
-                <li><a class="nav-link active" href="statusbayar.php"><i class="fa-solid fa-chart-column"></i> Status Bayar</a></li>
-                <li><a class="nav-link" href="laporan.php"><i class="fas fa-file"></i> Laporan</a></li>
+                <a href="aruskas.php"><i class="fas fa-chart-bar"></i> Arus Kas</a>
+                <a href="statusbayar.php" class="active"><i class="fas fa-chart-column"></i> Status Bayar</a>
+                <a href="laporan.php"><i class="fas fa-file"></i> Laporan</a>
 
-                <hr>
+                <div class="sidebar-divider" style="margin:12px 0 8px;"></div>
+                <a href="logout.php" class="logout"><i class="fas fa-sign-out-alt"></i> Logout</a>
+            </div>
+        </nav>
 
-                <li><a class="nav-link text-danger" href="logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+        <!-- MAIN CONTENT -->
+        <main class="content">
 
-            </ul>
-        </div>
-
-        <!-- CONTENT -->
-        <div class="flex-fill p-4">
-
-            <h4 class="mb-4">Status Pembayaran</h4>
-
-            <div class="row mb-3">
-
-                <div class="col-md-4">
-                    <div class="card p-3 text-center">
-                        <h6 class="text-success">Lunas</h6>
-                        <h3><?= $ringkasan['lunas']; ?></h3>
-                        <small>Siswa</small>
-                    </div>
+            <!-- TOPBAR -->
+            <div class="topbar">
+                <div>
+                    <button class="hamburger" onclick="openSidebar()"><i class="fas fa-bars"></i></button>
                 </div>
-
-                <div class="col-md-4">
-                    <div class="card p-3 text-center">
-                        <h6 class="text-warning">Sebagian</h6>
-                        <h3><?= $ringkasan['sebagian']; ?></h3>
-                        <small>Siswa</small>
-                    </div>
+                <div style="flex:1; min-width:120px;">
+                    <h1>Status Bayar</h1>
+                    <div class="greeting">Pantau status pembayaran kas seluruh siswa — <?= date('d F Y') ?></div>
                 </div>
-
-                <div class="col-md-4">
-                    <div class="card p-3 text-center">
-                        <h6 class="text-danger">Belum Bayar</h6>
-                        <h3><?= $ringkasan['belum']; ?></h3>
-                        <small>Siswa</small>
-                    </div>
-                </div>
-
             </div>
 
-            <!-- FILTER -->
-            <form method="GET" class="row g-2 mb-2 mt-3">
-                <div class="row g-2">
-
-                    <div class="col-md-5">
-                        <small>Cari nama</small>
-                        <input type="text" name="search" class="form-control"
-                            value="<?= htmlspecialchars($search); ?>">
+            <!-- STAT CARDS -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:var(--success-bg); color:var(--success);">
+                        <i class="fas fa-circle-check"></i>
                     </div>
-
-                    <div class="col-md-5">
-                        <small>Status</small>
-                        <select name="status" class="form-select">
-                            <option value="">Semua</option>
-                            <option value="lunas" <?= $status_filter == 'lunas' ? 'selected' : '' ?>>Lunas</option>
-                            <option value="sebagian" <?= $status_filter == 'sebagian' ? 'selected' : '' ?>>Sebagian</option>
-                            <option value="belum_bayar" <?= $status_filter == 'belum_bayar' ? 'selected' : '' ?>>Belum Bayar</option>
-                        </select>
+                    <div>
+                        <div class="label">Lunas</div>
+                        <div class="value" style="color:var(--success);"><?= $ringkasan['lunas'] ?></div>
+                        <div class="sub">Siswa</div>
                     </div>
-
-                    <div class="col-md-2 d-flex align-items-end">
-                        <button class="btn btn-primary me-2">Filter</button>
-                        <a href="statusbayar.php" class="btn btn-secondary">Reset</a>
-                    </div>
-
                 </div>
-            </form>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:var(--warning-bg); color:var(--warning);">
+                        <i class="fas fa-circle-half-stroke"></i>
+                    </div>
+                    <div>
+                        <div class="label">Sebagian</div>
+                        <div class="value" style="color:var(--warning);"><?= $ringkasan['sebagian'] ?></div>
+                        <div class="sub">Siswa</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:var(--danger-bg); color:var(--danger);">
+                        <i class="fas fa-circle-xmark"></i>
+                    </div>
+                    <div>
+                        <div class="label">Belum Bayar</div>
+                        <div class="value" style="color:var(--danger);"><?= $ringkasan['belum'] ?></div>
+                        <div class="sub">Siswa</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:var(--brand-light); color:var(--brand);">
+                        <i class="fas fa-bullseye"></i>
+                    </div>
+                    <div>
+                        <div class="label">Target / Siswa</div>
+                        <div class="value" style="color:var(--brand); font-size:1.1rem;">Rp <?= number_format($target_kas) ?></div>
+                        <div class="sub">Per tahun</div>
+                    </div>
+                </div>
+            </div>
 
-            <!-- TABEL -->
-            <div class="card mb-4">
+            <!-- CHART SECTION -->
+            <div class="section-card" style="margin-bottom:24px;">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-chart-bar" style="color:var(--brand);"></i>
+                        Perbandingan Pembayaran Per Siswa
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="chart-wrap">
+                        <canvas id="chartSiswa"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TABLE SECTION -->
+            <div class="section-card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-table" style="color:var(--brand);"></i>
+                        Daftar Status Pembayaran
+                    </div>
+                </div>
                 <div class="card-body">
 
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Nama</th>
-                                <th>Status</th>
-                                <th>Progress</th>
-                            </tr>
-                        </thead>
+                    <!-- FILTER -->
+                    <form method="GET" class="filter-bar" style="margin-bottom:20px;">
+                        <div class="filter-group" style="flex:1; min-width:180px;">
+                            <label>Cari Nama Siswa</label>
+                            <input type="text" name="search" class="form-control" placeholder="Ketik nama..."
+                                value="<?= htmlspecialchars($search) ?>">
+                        </div>
+                        <div class="filter-group" style="min-width:160px;">
+                            <label>Status</label>
+                            <select name="status" class="form-select">
+                                <option value="">Semua Status</option>
+                                <option value="lunas" <?= $status_filter == 'lunas'      ? 'selected' : '' ?>>Lunas</option>
+                                <option value="sebagian" <?= $status_filter == 'sebagian'   ? 'selected' : '' ?>>Sebagian</option>
+                                <option value="belum_bayar" <?= $status_filter == 'belum_bayar' ? 'selected' : '' ?>>Belum Bayar</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label style="opacity:0;">_</label>
+                            <div style="display:flex; gap:8px;">
+                                <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Filter</button>
+                                <a href="statusbayar.php" class="btn btn-secondary"><i class="fas fa-rotate-left"></i> Reset</a>
+                            </div>
+                        </div>
+                    </form>
 
-                        <tbody>
-                            <?php foreach ($q as $m): ?>
-
-                                <?php
-                                $total = (int)$m['total'];
-
-                                $persen = ($target_kas > 0)
-                                    ? ($total / $target_kas) * 100
-                                    : 0;
-
-                                if ($total == 0) {
-                                    $s = "Belum Bayar";
-                                    $w = "danger";
-                                } elseif ($total < $target_kas) {
-                                    $s = "Sebagian";
-                                    $w = "warning";
-                                } else {
-                                    $s = "Lunas";
-                                    $w = "success";
-                                }
-
-                                if ($status_filter == 'lunas' && $s != 'Lunas') continue;
-                                if ($status_filter == 'sebagian' && $s != 'Sebagian') continue;
-                                if ($status_filter == 'belum_bayar' && $s != 'Belum Bayar') continue;
-                                ?>
-
+                    <!-- TABLE -->
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
                                 <tr>
-                                    <td><?= $m['nama']; ?>
-                                        <br>
-                                        <a href="view-detail.php?nisn=<?= $m['nisn'] ?>" class="text-primary text-decoration-none fw-semibold small">
-                                            Detail
-                                        </a>
-                                    </td>
-
-                                    <td>
-                                        <span class="badge bg-<?= $w ?>"><?= $s ?></span>
-                                    </td>
-
-                                    <td>
-                                        <div class="progress">
-                                            <div class="progress-bar bg-<?= $w ?>"
-                                                style="width: <?= $persen ?>%">
-                                                <?= round($persen) ?>%
-                                            </div>
-                                        </div>
-
-                                        <small>
-                                            Rp <?= number_format($m['total']); ?> /
-                                            Rp <?= number_format($target_kas); ?>
-                                        </small>
-                                    </td>
+                                    <th>#</th>
+                                    <th>Nama Siswa</th>
+                                    <th>Status</th>
+                                    <th>Progress Pembayaran</th>
                                 </tr>
+                            </thead>
+                            <tbody>
+                                <?php
+                                $no = 0;
+                                $ada_data = false;
+                                foreach ($q as $m):
+                                    $total_bayar = (int)$m['total'];
+                                    $persen = ($target_kas > 0) ? min(($total_bayar / $target_kas) * 100, 100) : 0;
 
-                            <?php endforeach; ?>
-                        </tbody>
+                                    if ($total_bayar == 0) {
+                                        $s = 'Belum Bayar';
+                                        $cls = 'danger';
+                                        $icon = 'circle-xmark';
+                                    } elseif ($total_bayar < $target_kas) {
+                                        $s = 'Sebagian';
+                                        $cls = 'warning';
+                                        $icon = 'circle-half-stroke';
+                                    } else {
+                                        $s = 'Lunas';
+                                        $cls = 'success';
+                                        $icon = 'circle-check';
+                                    }
 
-                    </table>
+                                    if ($status_filter == 'lunas'       && $s != 'Lunas')       continue;
+                                    if ($status_filter == 'sebagian'    && $s != 'Sebagian')    continue;
+                                    if ($status_filter == 'belum_bayar' && $s != 'Belum Bayar') continue;
+
+                                    $ada_data = true;
+                                    $no++;
+                                ?>
+                                    <tr>
+                                        <td style="color:var(--muted); font-size:.78rem;"><?= $no ?></td>
+                                        <td>
+                                            <span class="student-name"><?= htmlspecialchars($m['nama']) ?></span>
+                                            <a href="view-detail.php?nisn=<?= $m['nisn'] ?>" class="detail-link">
+                                                <i class="fas fa-eye" style="font-size:.65rem;"></i> Lihat Detail
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <span class="badge badge-<?= $cls ?>">
+                                                <i class="fas fa-<?= $icon ?>" style="font-size:.65rem;"></i>
+                                                <?= $s ?>
+                                            </span>
+                                        </td>
+                                        <td style="min-width:200px;">
+                                            <div class="progress-wrap">
+                                                <div class="progress-fill <?= $cls ?>" style="width:<?= $persen ?>%"></div>
+                                            </div>
+                                            <div class="progress-meta">
+                                                Rp <?= number_format($total_bayar) ?> / Rp <?= number_format($target_kas) ?>
+                                                &nbsp;·&nbsp; <strong><?= round($persen) ?>%</strong>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+
+                                <?php if (!$ada_data): ?>
+                                    <tr>
+                                        <td colspan="4" class="empty-table">
+                                            <i class="fas fa-inbox" style="font-size:2rem; display:block; margin-bottom:8px; opacity:.4;"></i>
+                                            Tidak ada data yang cocok dengan filter
+                                        </td>
+                                    </tr>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
 
                 </div>
             </div>
-        </div>
+
+        </main>
     </div>
 
+    <script>
+        // ── Sidebar ──
+        function openSidebar() {
+            document.getElementById('sidebar').classList.add('open');
+            document.getElementById('overlay').classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeSidebar() {
+            document.getElementById('sidebar').classList.remove('open');
+            document.getElementById('overlay').classList.remove('show');
+            document.body.style.overflow = '';
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeSidebar();
+        });
+
+        // ── Bar Chart ──
+        const chartNama = <?= json_encode($chartNama) ?>;
+        const chartTotal = <?= json_encode($chartTotal) ?>;
+        const targetKas = <?= (int)$target_kas ?>;
+
+        const colors = chartTotal.map(v =>
+            v >= targetKas ? '#22c55e' :
+            v > 0 ? '#f59e0b' : '#ef4444'
+        );
+
+        new Chart(document.getElementById('chartSiswa'), {
+            type: 'bar',
+            data: {
+                labels: chartNama,
+                datasets: [{
+                    label: 'Total Dibayar (Rp)',
+                    data: chartTotal,
+                    backgroundColor: colors,
+                    borderRadius: 6,
+                    borderSkipped: false,
+                }, {
+                    label: 'Target (Rp)',
+                    data: chartNama.map(() => targetKas),
+                    type: 'line',
+                    borderColor: '#2563eb',
+                    borderDash: [6, 4],
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    fill: false,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            font: {
+                                size: 12,
+                                family: 'Plus Jakarta Sans'
+                            },
+                            padding: 16
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => ' Rp ' + ctx.parsed.y.toLocaleString('id-ID')
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: v => 'Rp ' + v.toLocaleString('id-ID'),
+                            font: {
+                                size: 11,
+                                family: 'Plus Jakarta Sans'
+                            }
+                        },
+                        grid: {
+                            color: '#f1f5f9'
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            font: {
+                                size: 11,
+                                family: 'Plus Jakarta Sans'
+                            }
+                        },
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+    </script>
 </body>
 
 </html>
